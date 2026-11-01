@@ -22,7 +22,6 @@ Cloud inference front-end for the SevenEngine static PE detection engine.
 |---------|----------------------------------|
 | /       | Overview, live engine status     |
 | /scan   | Single-file scan, gauge verdict  |
-| /tasks  | Batch upload (32 files), polling |
 | /about  | Engine identity, pipeline docs   |
 
 ## REST API
@@ -37,8 +36,6 @@ Cloud inference front-end for the SevenEngine static PE detection engine.
 | POST   | /api/scan/text   | multipart file=<binary>    | plain text "Return:ML:... / Score:N"      |
 | POST   | /api/scan/base64 | JSON {name, data(b64)}     | same as /api/scan                         |
 | POST   | /api/scan/hash   | JSON {sha256 or md5}       | cache hit verdict or "unknown"            |
-| POST   | /api/scan/batch  | multipart files=<n> (<=32) | task_id for polling                       |
-| GET    | /api/task/<id>   | -                          | task progress + per-file results          |
 
 All responses carry `Access-Control-Allow-Origin: *`.
 
@@ -63,4 +60,4 @@ All responses carry `Access-Control-Allow-Origin: *`.
 
 Free plan notes: instance sleeps after 15 min idle (first request wakes it,
 about 30 s), 750 instance-hours per month, no persistent disk (history,
-stats and hash cache reset on restart).
+stats and hash cache reset on restart). Single file upload limit is 300 MB.

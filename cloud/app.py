@@ -19,17 +19,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("sevenengine")
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 300 * 1024 * 1024
 
 MODEL = None
 MODEL_LOCK = threading.Lock()
 START_TIME = time.time()
-TASKS = {}
-TASKS_LOCK = threading.Lock()
-TASK_TTL = 3600
-MAX_BATCH_FILES = 32
-MAX_FILE_BYTES = 16 * 1024 * 1024
-ALLOWED_EXT = {".exe", ".dll", ".sys", ".scr", ".com", ".ocx", ".cpl", ".drv", ".bin", ""}
+MAX_FILE_BYTES = 300 * 1024 * 1024
+
 
 HISTORY = []
 HISTORY_LOCK = threading.Lock()
@@ -85,11 +81,6 @@ def page_scan():
     return render_template("scan.html")
 
 
-@app.route("/tasks")
-def page_tasks():
-    return render_template("tasks.html")
-
-
 @app.route("/about")
 def page_about():
     return render_template("about.html")
@@ -142,7 +133,7 @@ def api_scan():
         return jsonify({"ok": False, "error": "empty filename"}), 400
     data = f.read(MAX_FILE_BYTES + 1)
     if len(data) > MAX_FILE_BYTES:
-        return jsonify({"ok": False, "error": "file too large (>16MB)"}), 413
+        return jsonify({"ok": False, "error": "file too large (>300MB)"}), 413
     name = secure_filename(f.filename) or "upload.bin"
     sha = hashlib.sha256(data).hexdigest()
     md5 = hashlib.md5(data).hexdigest()
@@ -165,56 +156,12 @@ def api_scan():
     return jsonify(r)
 
 
-@app.route("/api/scan/batch", methods=["POST"])
-def api_scan_batch():
-    files = request.files.getlist("files")
-    if not files:
-        return jsonify({"ok": False, "error": "missing files field"}), 400
-    files = files[:MAX_BATCH_FILES]
-    tid = uuid.uuid4().hex[:12]
-    with TASKS_LOCK:
-        TASKS[tid] = {"id": tid, "state": "running", "total": len(files), "done": 0,
-                      "results": [], "started": time.time(), "finished": None}
-    def worker():
-        for f in files:
-            name = secure_filename(f.filename) or "upload.bin"
-            data = f.read(MAX_FILE_BYTES + 1)
-            if len(data) > MAX_FILE_BYTES:
-                r = {"name": name, "status": "error", "score": None, "label": "Too large", "ms": 0, "size": len(data)}
-            else:
-                r = _classify(data)
-                r.update({"name": name, "size": len(data)})
-            with TASKS_LOCK:
-                t = TASKS[tid]
-                t["results"].append(r)
-                t["done"] = len(t["results"])
-        with TASKS_LOCK:
-            TASKS[tid]["state"] = "done"
-            TASKS[tid]["finished"] = time.time()
-    threading.Thread(target=worker, daemon=True).start()
-    return jsonify({"ok": True, "task_id": tid, "total": len(files)})
-
-
-@app.route("/api/task/<tid>")
-def api_task(tid):
-    with TASKS_LOCK:
-        t = TASKS.get(tid)
-        if not t:
-            return jsonify({"ok": False, "error": "not found"}), 404
-        snapshot = dict(t)
-        snapshot["results"] = list(t["results"])
-    snapshot["ok"] = True
-    return jsonify(snapshot)
-
-
 @app.route("/api/stats")
 def api_stats():
     with STATS_LOCK:
         s = dict(STATS)
     total = s["total"]
     avg = round(s["ms_sum"] / total, 1) if total else 0
-    with TASKS_LOCK:
-        running = sum(1 for t in TASKS.values() if t["state"] == "running")
     return jsonify({
         "ok": True,
         "total": total,
@@ -222,7 +169,6 @@ def api_stats():
         "clean": s["clean"],
         "error": s["error"],
         "avg_ms": avg,
-        "tasks_running": running,
         "cache_size": len(HASH_CACHE),
         "engine": "SevenEngine V3 Flash",
         "uptime_sec": int(time.time() - START_TIME),

@@ -100,7 +100,6 @@ input[type=file]{display:none}
   <nav>
     <a href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a>
     <a href="/scan" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Cloud Scan</a>
-    <a href="/tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Batch Tasks</a>
     <a href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About Engine</a>
   </nav>
   <div class="sidefoot">NewEra Studio<br>SevenEngine V3 Flash<br>Cloud inference endpoint</div>
@@ -123,7 +122,7 @@ input[type=file]{display:none}
         <div class="drop" id="drop">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           <h3>Drop a PE file here</h3>
-          <p>exe · dll · sys · scr · com — max 16 MB, content inspected by magic bytes</p>
+          <p>exe · dll · sys · scr · com — max 300 MB, content inspected by magic bytes</p>
           <span class="or"><label class="btn ghost" for="file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Browse files</label></span>
           <input type="file" id="file" accept=".exe,.dll,.sys,.scr,.com,.ocx,.cpl,.drv,.bin,*/*">
         </div>
