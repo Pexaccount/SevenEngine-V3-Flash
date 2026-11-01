@@ -81,6 +81,11 @@ def page_scan():
     return render_template("scan.html")
 
 
+@app.route("/docs")
+def page_docs():
+    return render_template("docs.html")
+
+
 @app.route("/about")
 def page_about():
     return render_template("about.html")

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API Reference · SevenEngine</title>
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<style>
+:root{
+  --bg:#f5f7fa; --side:#0f172a; --side-txt:#94a3b8; --side-on:#e2e8f0;
+  --panel:#ffffff; --border:#e3e8ef; --text:#1f2937; --muted:#6b7280;
+  --accent:#2563eb; --accent-soft:#eff4ff; --ok:#16a34a; --ok-soft:#dcfce7;
+  --warn:#d97706; --warn-soft:#fef3c7; --bad:#dc2626; --bad-soft:#fee2e2;
+  --mono:Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;display:flex;min-height:100vh}
+aside{width:220px;flex:none;background:var(--side);display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
+.brand img{width:34px;height:34px}
+.brand b{color:#fff;font-size:14.5px;line-height:1.25}
+.brand small{color:var(--side-txt);font-size:10.5px;display:block}
+nav{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;color:var(--side-txt);text-decoration:none;font-size:13.5px;cursor:pointer;transition:background .15s ease,color .15s ease,transform .15s ease}
+nav a svg{width:16px;height:16px;flex:none}
+nav a:hover{background:rgba(255,255,255,.07);color:var(--side-on);transform:translateX(2px)}
+nav a.on{background:var(--accent);color:#fff}
+nav a.on:hover{transform:none}
+.sidefoot{margin-top:auto;padding:10px 8px;color:#475569;font-size:10.5px;line-height:1.7}
+.wrap{flex:1;min-width:0;display:flex;flex-direction:column}
+topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center}
+topbar h1{font-size:16px;font-weight:600}
+.conn{margin-left:auto;display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+.conn i{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block}
+.conn.off i{background:var(--bad)}
+main{flex:1;padding:24px 28px;max-width:980px;width:100%}
+.hero{padding:6px 0 18px}
+.hero h2{font-size:22px;font-weight:700;letter-spacing:-.3px}
+.hero p{color:var(--muted);margin-top:6px;font-size:13px;line-height:1.6}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px}
+.panel h2{font-size:12.5px;font-weight:600;color:var(--muted);letter-spacing:.4px;padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
+.panel h2 svg{width:15px;height:15px}
+.ep{border-bottom:1px solid var(--border)}
+.ep:last-child{border-bottom:none}
+.ep .hd{display:flex;align-items:center;gap:11px;padding:13px 20px;background:#fafbfc;flex-wrap:wrap}
+.method{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.4px}
+.method.get{background:var(--ok-soft);color:var(--ok)}
+.method.post{background:var(--accent-soft);color:var(--accent)}
+.ep .hd code{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)}
+.ep .hd em{color:var(--muted);font-size:12px;font-style:normal;margin-left:auto}
+.ep .bd{padding:14px 20px}
+.ep .bd p{color:var(--muted);font-size:12.5px;line-height:1.65;margin-bottom:10px}
+.ep .bd p:last-child{margin-bottom:0}
+.params{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.params th{text-align:left;color:var(--muted);font-size:10.5px;letter-spacing:.4px;padding:6px 10px;border-bottom:1px solid var(--border);background:#fafbfc;font-weight:600}
+.params td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+.params tr:last-child td{border-bottom:none}
+.params td:first-child{font-family:var(--mono);font-size:11.5px;color:var(--accent);white-space:nowrap}
+.params td:nth-child(2){color:var(--muted);font-size:11.5px;white-space:nowrap}
+pre{background:var(--side);color:#cbd5e1;font-family:var(--mono);font-size:11.5px;line-height:1.65;padding:13px 16px;border-radius:10px;overflow-x:auto;margin-top:10px}
+pre .k{color:#7dd3fc}
+pre .s{color:#86efac}
+pre .n{color:#fbbf24}
+pre .c{color:#64748b}
+.note{display:flex;gap:10px;padding:12px 16px;background:var(--accent-soft);border-radius:10px;margin-top:12px}
+.note svg{width:16px;height:16px;stroke:var(--accent);flex:none;margin-top:1px}
+.note span{font-size:12.5px;line-height:1.6;color:#1e40af}
+.foot{padding:12px 28px;color:#9ca3af;font-size:11px;border-top:1px solid var(--border);margin-top:auto}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <img src="/static/logo.svg" alt="logo">
+    <div><b>SevenEngine</b><small>V3 Flash · Cloud</small></div>
+  </div>
+  <nav>
+    <a href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a>
+    <a href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Cloud Scan</a>
+    <a href="/docs" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>API Docs</a>
+    <a href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About Engine</a>
+  </nav>
+  <div class="sidefoot">NewEra Studio<br>SevenEngine V3 Flash<br>Cloud inference endpoint</div>
+</aside>
+<div class="wrap">
+  <topbar>
+    <h1>API Reference</h1>
+    <div class="conn" id="conn"><i></i><span id="connTxt">Checking</span></div>
+  </topbar>
+  <main>
+    <div class="hero">
+      <h2>SevenEngine Cloud API</h2>
+      <p>Static PE detection over HTTP. Upload a binary, receive a maliciousness score. Base URL is this host; every endpoint answers with JSON unless noted, and all responses carry <span style="font-family:var(--mono);font-size:12px">Access-Control-Allow-Origin: *</span> so browser clients can call the API directly.</p>
+    </div>
+
+    <div class="panel">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>Service Status</h2>
+      <div class="ep">
+        <div class="hd"><span class="method get">GET</span><code>/api/health</code><em>liveness + engine metadata</em></div>
+        <div class="bd">
+          <p>Reports whether the model is loaded, plus the feature dimension, decision threshold and process uptime. Safe to poll. Also used as the Render health check path.</p>
+<pre>{
+  <span class="k">"ok"</span>: <span class="n">true</span>,
+  <span class="k">"engine"</span>: <span class="s">"SevenEngine V3 Flash"</span>,
+  <span class="k">"feature_dim"</span>: <span class="n">1086</span>,
+  <span class="k">"threshold"</span>: <span class="n">85</span>,
+  <span class="k">"uptime_sec"</span>: <span class="n">189</span>
+}</pre>
+        </div>
+      </div>
+      <div class="ep">
+        <div class="hd"><span class="method get">GET</span><code>/api/stats</code><em>aggregate counters</em></div>
+        <div class="bd">
+          <p>Running totals for this worker process: how many samples were scanned, how they were classified, the mean inference time, and how many hashes are currently cached.</p>
+<pre>{
+  <span class="k">"ok"</span>: <span class="n">true</span>,
+  <span class="k">"total"</span>: <span class="n">7</span>,
+  <span class="k">"malware"</span>: <span class="n">2</span>,
+  <span class="k">"clean"</span>: <span class="n">5</span>,
+  <span class="k">"error"</span>: <span class="n">0</span>,
+  <span class="k">"avg_ms"</span>: <span class="n">86.4</span>,
+  <span class="k">"cache_size"</span>: <span class="n">6</span>,
+  <span class="k">"uptime_sec"</span>: <span class="n">48</span>
+}</pre>
+        </div>
+      </div>
+      <div class="ep">
+        <div class="hd"><span class="method get">GET</span><code>/api/history</code><em>recent scan records</em></div>
+        <div class="bd">
+          <p>Newest-first list of the last scans. Ring buffer of 500 entries, reset when the worker restarts.</p>
+          <table class="params">
+            <thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td>limit</td><td>int, query</td><td>How many records to return. Default 100, maximum 500.</td></tr>
+            </tbody>
+          </table>
+<pre>{
+  <span class="k">"ok"</span>: <span class="n">true</span>,
+  <span class="k">"count"</span>: <span class="n">3</span>,
+  <span class="k">"items"</span>: [
+    { <span class="k">"name"</span>: <span class="s">"ProcessFilter_1.sys"</span>, <span class="k">"status"</span>: <span class="s">"clean"</span>, <span class="k">"score"</span>: <span class="n">30</span>,
+      <span class="k">"size"</span>: <span class="n">137120</span>, <span class="k">"ms"</span>: <span class="n">17</span>, <span class="k">"time"</span>: <span class="s">"2026-11-01 16:47:48"</span> }
+  ]
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Scanning</h2>
+      <div class="ep">
+        <div class="hd"><span class="method post">POST</span><code>/api/scan</code><em>primary endpoint, multipart upload</em></div>
+        <div class="bd">
+          <p>Send one binary as multipart form data with the field name <span style="font-family:var(--mono);font-size:12px">file</span>. The engine reads the MZ magic, ignores the filename extension, extracts 1086 features and scores the sample. Maximum 300 MB per request.</p>
+          <table class="params">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td>file</td><td>binary</td><td>The PE sample. Anything up to 300 MB.</td></tr>
+            </tbody>
+          </table>
+<pre><span class="c"># curl</span>
+curl -F <span class="s">"file=@sample.exe"</span> https://your-host/api/scan</pre>
+<pre>{
+  <span class="k">"ok"</span>: <span class="n">true</span>,
+  <span class="k">"name"</span>: <span class="s">"notepad.exe"</span>,
+  <span class="k">"size"</span>: <span class="n">360448</span>,
+  <span class="k">"status"</span>: <span class="s">"clean"</span>,
+  <span class="k">"label"</span>: <span class="s">"Clean"</span>,
+  <span class="k">"score"</span>: <span class="n">0</span>,
+  <span class="k">"ms"</span>: <span class="n">26</span>,
+  <span class="k">"md5"</span>: <span class="s">"971b133d2119877b5631e4a33f1ed4bf"</span>,
+  <span class="k">"sha256"</span>: <span class="s">"002b2ec6d7210b0c354d56192bd429657f9990ea8535fc4b7f5350c02483f3eb"</span>
+}</pre>
+          <p>Re-uploading a sample whose SHA-256 is already cached skips inference and returns immediately with <span style="font-family:var(--mono);font-size:12px">"cached": true</span>.</p>
+          <table class="params">
+            <thead><tr><th>Status</th><th>Code</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td>400</td><td>JSON</td><td>Missing or empty file field.</td></tr>
+              <tr><td>413</td><td>JSON</td><td>Payload exceeds 300 MB.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="ep">
+        <div class="hd"><span class="method post">POST</span><code>/api/scan/text</code><em>plain text, SevenEngine native format</em></div>
+        <div class="bd">
+          <p>Same input as <span style="font-family:var(--mono);font-size:12px">/api/scan</span>, but the body is the engine's native two-line text protocol. Handy for drop-in replacement of the local CLI in existing pipelines. The classification is also mirrored in the <span style="font-family:var(--mono);font-size:12px">X-SevenEngine-Status</span> response header.</p>
+<pre>Return:ML:Gen.Malware
+Score:94</pre>
+<pre>Return:ML:Clean
+Score:0</pre>
+<pre><span class="c"># not a PE file</span>
+Return:Error
+Score:None</pre>
+        </div>
+      </div>
+      <div class="ep">
+        <div class="hd"><span class="method post">POST</span><code>/api/scan/base64</code><em>JSON body, no multipart</em></div>
+        <div class="bd">
+          <p>For clients where multipart is awkward: send the sample as a base64 string inside JSON. Maximum decoded size is 300 MB.</p>
+          <table class="params">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td>name</td><td>string</td><td>Optional label for the sample, echoed back.</td></tr>
+              <tr><td>data</td><td>string</td><td>Base64-encoded file content.</td></tr>
+            </tbody>
+          </table>
+<pre>{
+  <span class="k">"name"</span>: <span class="s">"sample.bin"</span>,
+  <span class="k">"data"</span>: <span class="s">"TVqQAAMAAAAEAAAA..."</span>
+}</pre>
+        </div>
+      </div>
+      <div class="ep">
+        <div class="hd"><span class="method post">POST</span><code>/api/scan/hash</code><em>verdict by hash, no upload</em></div>
+        <div class="bd">
+          <p>Look up a previously scanned sample by SHA-256 or MD5. Returns the cached verdict when this worker has seen the hash, otherwise <span style="font-family:var(--mono);font-size:12px">"found": false</span> with a hint to upload the file.</p>
+          <table class="params">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td>sha256</td><td>string</td><td>64 hex characters. Preferred.</td></tr>
+              <tr><td>md5</td><td>string</td><td>32 hex characters. Accepted as fallback.</td></tr>
+            </tbody>
+          </table>
+<pre><span class="c"># cache hit</span>
+{ <span class="k">"ok"</span>: <span class="n">true</span>, <span class="k">"lookup"</span>: <span class="s">"cache-hit"</span>, <span class="k">"status"</span>: <span class="s">"clean"</span>, <span class="k">"score"</span>: <span class="n">0</span> }</pre>
+<pre><span class="c"># never seen</span>
+{ <span class="k">"ok"</span>: <span class="n">true</span>, <span class="k">"lookup"</span>: <span class="s">"unknown"</span>, <span class="k">"found"</span>: <span class="n">false</span> }</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>Verdict Semantics</h2>
+      <div class="ep">
+        <div class="bd">
+          <p>The model emits a maliciousness score from 0 to 100. The decision boundary is fixed at 85.</p>
+          <table class="params">
+            <thead><tr><th>Score</th><th>Status</th><th>Interpretation</th></tr></thead>
+            <tbody>
+              <tr><td>85 - 100</td><td>malware</td><td>Above threshold, treat as malicious.</td></tr>
+              <tr><td>0 - 84</td><td>clean</td><td>Below threshold, no strong malicious pattern.</td></tr>
+              <tr><td>null</td><td>error</td><td>Not a PE image, empty file, or unreadable.</td></tr>
+            </tbody>
+          </table>
+          <div class="note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Feature extraction samples at most 2 MB of raw bytes per file, so a 300 MB installer is scored as fast as a small DLL. The whole file is still hashed for cache identity.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div class="foot">SevenEngine V3 Flash · Cloud inference · NewEra Studio</div>
+</div>
+<script>
+async function ping(){
+  const c=document.getElementById('conn'),t=document.getElementById('connTxt');
+  try{const r=await fetch('/api/health');const j=await r.json();
+    if(j.ok){c.classList.remove('off');t.textContent='Online'}else{c.classList.add('off');t.textContent='Engine offline'}
+  }catch(e){c.classList.add('off');t.textContent='Disconnected'}
+}
+ping();setInterval(ping,5000);
+</script>
+</body>
+</html>
