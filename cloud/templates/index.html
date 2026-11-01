@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SevenEngine Cloud Scan</title>
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<style>
+:root{
+  --bg:#f5f7fa; --side:#0f172a; --side-txt:#94a3b8; --side-on:#e2e8f0;
+  --panel:#ffffff; --border:#e3e8ef; --text:#1f2937; --muted:#6b7280;
+  --accent:#2563eb; --accent-soft:#eff4ff; --ok:#16a34a; --ok-soft:#dcfce7;
+  --warn:#d97706; --warn-soft:#fef3c7; --bad:#dc2626; --bad-soft:#fee2e2;
+  --mono:Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;display:flex;min-height:100vh}
+aside{width:220px;flex:none;background:var(--side);display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
+.brand img{width:34px;height:34px}
+.brand b{color:#fff;font-size:14.5px;line-height:1.25}
+.brand small{color:var(--side-txt);font-size:10.5px;display:block}
+nav{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;color:var(--side-txt);text-decoration:none;font-size:13.5px;cursor:pointer;transition:background .15s ease,color .15s ease,transform .15s ease}
+nav a svg{width:16px;height:16px;flex:none}
+nav a:hover{background:rgba(255,255,255,.07);color:var(--side-on);transform:translateX(2px)}
+nav a.on{background:var(--accent);color:#fff}
+nav a.on:hover{transform:none}
+.sidefoot{margin-top:auto;padding:10px 8px;color:#475569;font-size:10.5px;line-height:1.7}
+.wrap{flex:1;min-width:0;display:flex;flex-direction:column}
+topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center}
+topbar h1{font-size:16px;font-weight:600}
+.conn{margin-left:auto;display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+.conn i{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block;transition:background .3s}
+.conn.off i{background:var(--bad)}
+main{flex:1;padding:24px 28px;max-width:1180px;width:100%}
+.hero{padding:28px 0 8px}
+.hero .tag{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:11px;background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:600;letter-spacing:.5px}
+.hero .tag svg{width:12px;height:12px}
+.hero h2{font-size:26px;font-weight:700;margin-top:12px;letter-spacing:-.3px}
+.hero p{color:var(--muted);margin-top:8px;max-width:620px;line-height:1.6}
+.grid{display:grid;gap:16px;margin-top:22px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:1fr 1fr}
+@media(max-width:1000px){.g4,.g3,.g2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:box-shadow .18s ease,transform .18s ease}
+.card:hover{box-shadow:0 6px 22px rgba(15,23,42,.07);transform:translateY(-1px)}
+.card .body{padding:18px}
+.stat small{color:var(--muted);font-size:11.5px;letter-spacing:.4px;display:flex;align-items:center;gap:7px}
+.stat small svg{width:14px;height:14px}
+.stat b{font-size:24px;font-weight:650;display:block;margin-top:8px}
+.stat b.good{color:var(--ok)}
+.feat{padding:18px}
+.feat .ic{width:38px;height:38px;border-radius:10px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.feat .ic svg{width:19px;height:19px;stroke:var(--accent)}
+.feat h3{font-size:14.5px;font-weight:600;margin-bottom:6px}
+.feat p{color:var(--muted);font-size:12.5px;line-height:1.6}
+.cta{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:10px;font-size:13.5px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid transparent;transition:background .15s,transform .15s,box-shadow .15s}
+.btn svg{width:15px;height:15px}
+.btn.pri{background:var(--accent);color:#fff}
+.btn.pri:hover{background:#1d4ed8;transform:translateY(-1px);box-shadow:0 4px 14px rgba(37,99,235,.3)}
+.btn.ghost{background:#fff;color:var(--accent);border-color:var(--border)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.foot{padding:12px 28px;color:#9ca3af;font-size:11px;border-top:1px solid var(--border);margin-top:auto}
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.badge.bad{background:var(--bad-soft);color:var(--bad)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <img src="/static/logo.svg" alt="logo">
+    <div><b>SevenEngine</b><small>V3 Flash · Cloud</small></div>
+  </div>
+  <nav>
+    <a href="/" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a>
+    <a href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Cloud Scan</a>
+    <a href="/tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Batch Tasks</a>
+    <a href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About Engine</a>
+  </nav>
+  <div class="sidefoot">NewEra Studio<br>SevenEngine V3 Flash<br>Cloud inference endpoint</div>
+</aside>
+<div class="wrap">
+  <topbar>
+    <h1>Overview</h1>
+    <div class="conn" id="conn"><i></i><span id="connTxt">Checking</span></div>
+  </topbar>
+  <main>
+    <div class="hero">
+      <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>SEVENENGINE CLOUD SCAN</span>
+      <h2>Static PE detection, served from the cloud</h2>
+      <p>Upload any Windows executable and the SevenEngine inference core classifies it in milliseconds. 1086-dimension feature extraction, LightGBM scoring, no signature database needed.</p>
+    </div>
+    <div class="grid g4">
+      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>ENGINE STATUS</small><b class="good" id="st-eng">Loading</b></div></div>
+      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>FEATURE DIMS</small><b id="st-dim">-</b></div></div>
+      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>DETECT THRESHOLD</small><b id="st-th">-</b></div></div>
+      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>UPTIME</small><b id="st-up">-</b></div></div>
+    </div>
+    <div class="grid g3">
+      <div class="card"><div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><h3>Raw bytes, no extension tricks</h3><p>Detection keys off the MZ header and PE structure. Renamed, packed or extension-spoofed binaries are still caught.</p></div></div>
+      <div class="card"><div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></div><h3>Feature based, not signatures</h3><p>1086 features per sample: byte histogram, entropy map, section layout, import table, Rich header, resources, strings.</p></div></div>
+      <div class="card"><div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><h3>Fast inference</h3><p>A single LightGBM booster scores a sample in tens of milliseconds. Batch mode handles up to 32 files per task.</p></div></div>
+    </div>
+    <div class="cta">
+      <a class="btn pri" href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>Start a scan</a>
+      <a class="btn ghost" href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Engine details</a>
+    </div>
+  </main>
+  <div class="foot">SevenEngine V3 Flash · Cloud inference · NewEra Studio</div>
+</div>
+<script>
+async function ping(){
+  const c=document.getElementById('conn'),t=document.getElementById('connTxt');
+  try{
+    const r=await fetch('/api/health');const j=await r.json();
+    if(j.ok){
+      c.classList.remove('off');t.textContent='Online';
+      document.getElementById('st-eng').textContent='Ready';
+      document.getElementById('st-dim').textContent=j.feature_dim;
+      document.getElementById('st-th').textContent='>= '+j.threshold;
+      document.getElementById('st-up').textContent=fmtUp(j.uptime_sec);
+    }else{
+      c.classList.add('off');t.textContent='Engine offline';
+      document.getElementById('st-eng').textContent='Down';
+    }
+  }catch(e){
+    c.classList.add('off');t.textContent='Disconnected';
+    document.getElementById('st-eng').textContent='-';
+  }
+}
+function fmtUp(s){s=Math.max(0,s|0);const h=(s/3600)|0,m=((s%3600)/60)|0;return h?h+'h '+m+'m':(m?m+'m ':'')+(s%60)+'s'}
+ping();setInterval(ping,5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,869 @@
+import sys
+import os
+import re
+import math
+import struct
+import zlib
+import threading
+import queue
+
+import numpy as np
+
+try:
+    import lightgbm
+except ImportError:
+    lightgbm = None
+
+# 维度布局（旧 1000 维原位不动，追加 204 维，无哈希桶噪声特征）:
+#   0-255    字节直方图
+#   256-383  128 分块熵
+#   384-511  128 分块均值
+#   512-639  128 分块字节多样性
+#   640-735  节区 16x6
+#   736-759  全局头 24
+#   760-855  DLL 名哈希 96
+#   856-983  函数名哈希 128
+#   984-999  导入统计 16
+#   1000-1023 节区属性 24（逐节可执行位 + 聚合位）
+#   1024-1039 全局扩展 16（签名/.NET/TLS/EP位置/overlay熵/校验和等）
+#   1040-1047 Rich Header 统计 8（纯统计量，无编译器哈希桶）
+#   1048-1055 导出表 8
+#   1056-1067 资源 12
+#   1068-1077 敏感 API 词表 10（强信号低误报核心）
+#   1078-1085 字符串计数 8（URL/IP/注册表/命令解释器/自启动/加密勒索词/总量/均长）
+FEATURE_DIM = 1086
+MALWARE_THRESHOLD = 85
+SCAN_WORKERS = 10
+BYTE_STAT_CAP = 2 * 1024 * 1024
+N_CHUNKS = 128
+N_SECTIONS = 16
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(ROOT_DIR, "Model", "SevenML.onnx")
+
+# 节区名分类集合
+_COMMON_SECTIONS = {
+    ".text", ".data", ".rdata", ".bss", ".idata", ".edata", ".tls", ".rsrc",
+    ".reloc", ".pdata", ".debug", ".crt", ".gfx", ".didata", ".xdata", ".edata",
+    "idata", "edata", "bss", "tls", "rsrc", "reloc", "pdata", "text", "data", "rdata",
+}
+_PACKER_SECTIONS = {
+    "upx0", "upx1", "upx2", "upx!", "aspack", "adata", "aspack1", "aspack2",
+    "enigma1", "enigma2", "themida", "winlicen", "vmp0", "vmp1", "vmp2",
+    "mpress1", "mpress2", "petite", "pec1", "pec2", "pebundle", "mew", "nsp0", "nsp1", "nsp2",
+}
+# 敏感 API 词表（函数名去 A/W 后缀小写匹配），仅保留 10 个最强低误报核心：
+# 正规软件极少直接导入，命中即高价值信号
+_SENSITIVE_APIS = [
+    "createremotethread",      # 远程线程注入
+    "writeprocessmemory",      # 跨进程写内存
+    "ntunmapviewofsection",    # 进程镂空（hollowing）
+    "queueuserapc",            # APC 注入
+    "setthreadcontext",        # 线程上下文劫持
+    "setwindowshookex",        # 全局钩子/键盘记录
+    "urldownloadtofile",       # 下载执行
+    "cryptencrypt",            # 加密（勒索核心）
+    "systemfunction032",       # 流加密混淆（勒索常用）
+    "ldrgetprocedureaddress",  # 隐蔽动态解析
+]
+_API_INDEX = {name: i for i, name in enumerate(_SENSITIVE_APIS)}
+assert len(_SENSITIVE_APIS) == 10, len(_SENSITIVE_APIS)
+
+_STR_RE = re.compile(rb"[\x20-\x7E]{5,}")
+_IP_RE = re.compile(rb"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+
+def is_pe(data):
+    return isinstance(data, (bytes, bytearray)) and len(data) >= 64 and data[0:2] == b"MZ"
+
+
+def _chunk_stats(arr):
+    pad = (-arr.size) % N_CHUNKS
+    if pad:
+        arr = np.concatenate([arr, np.zeros(pad, dtype=np.uint8)])
+    blocks = arr.reshape(N_CHUNKS, -1)
+    ents = np.zeros(N_CHUNKS, dtype=np.float64)
+    means = np.zeros(N_CHUNKS, dtype=np.float64)
+    divs = np.zeros(N_CHUNKS, dtype=np.float64)
+    arange = np.arange(256, dtype=np.float64)
+    for i in range(N_CHUNKS):
+        b = blocks[i]
+        n = b.size
+        c = np.bincount(b, minlength=256).astype(np.float64)
+        p = c[c > 0] / n
+        ents[i] = float(-(p * np.log2(p)).sum()) if p.size else 0.0
+        means[i] = float(c @ arange) / n
+        divs[i] = float(np.count_nonzero(c)) / 256.0
+    return ents, means, divs
+
+
+def _read_cstr(data, off, limit=256):
+    if off is None or off < 0 or off >= len(data):
+        return ""
+    end = data.find(b"\x00", off, off + limit)
+    if end < 0:
+        end = min(off + limit, len(data))
+    return data[off:end].decode("latin-1", "ignore")
+
+
+def _rva_to_off(rva, sections):
+    for s in sections:
+        span = max(s["vsize"], s["rawsize"], 1)
+        if s["vaddr"] <= rva < s["vaddr"] + span:
+            delta = rva - s["vaddr"]
+            if delta < s["rawsize"]:
+                return s["rawptr"] + delta
+            return None
+    return None
+
+
+def _parse_pe(data):
+    info = {
+        "sections": [],
+        "dlls": [],
+        "funcs": [],
+        "pe32plus": False,
+        "global": None,
+        "dd": [],
+        "e_lfanew": 0,
+        "imagebase": 0,
+        "checksum": 0,
+        "tstamp": 0,
+        "ep": 0,
+        "ordinal_count": 0,
+    }
+    if len(data) < 0x40:
+        return info
+    e_lfanew = struct.unpack_from("<I", data, 0x3C)[0]
+    if e_lfanew + 24 > len(data) or data[e_lfanew:e_lfanew + 4] != b"PE\x00\x00":
+        return info
+    machine, nsec, tstamp, symptr, symnum, optsize, chars = struct.unpack_from(
+        "<HHIIIHH", data, e_lfanew + 4
+    )
+    off = e_lfanew + 24
+    if off + optsize > len(data) or optsize < 70:
+        return info
+    magic = struct.unpack_from("<H", data, off)[0]
+    if magic == 0x20B:
+        pe32plus = True
+        dd_base = off + 112
+    elif magic == 0x10B:
+        pe32plus = False
+        dd_base = off + 96
+    else:
+        return info
+    if dd_base + 128 > len(data):
+        dd_base = -1
+
+    sizecode, sizeinit, sizeuninit = struct.unpack_from("<III", data, off + 4)
+    ep, basecode = struct.unpack_from("<II", data, off + 16)
+    sizeimage, sizeheaders, checksum = struct.unpack_from("<III", data, off + 56)
+    subsystem, dllchar = struct.unpack_from("<HH", data, off + 68)
+    rva_and_sizes = struct.unpack_from("<I", data, off + (108 if pe32plus else 92))[0]
+
+    data_dirs = []
+    if dd_base > 0:
+        for i in range(16):
+            rva, sz = struct.unpack_from("<II", data, dd_base + i * 8)
+            data_dirs.append((rva, sz))
+    info["dd"] = data_dirs
+
+    sec_off = off + optsize
+    sections = []
+    for i in range(min(nsec, N_SECTIONS)):
+        so = sec_off + i * 40
+        if so + 40 > len(data):
+            break
+        vsize, vaddr, rawsize, rawptr = struct.unpack_from("<IIII", data, so + 8)
+        schar = struct.unpack_from("<I", data, so + 36)[0]
+        sname = data[so:so + 8].decode("latin-1", "ignore").rstrip("\x00 \t")
+        raw = data[rawptr:rawptr + min(rawsize, BYTE_STAT_CAP)] if rawptr + rawsize <= len(data) else data[rawptr:rawptr + max(rawsize, 0)]
+        if len(raw) > 1:
+            n = len(raw)
+            arr = np.frombuffer(raw, dtype=np.uint8)
+            c = np.bincount(arr, minlength=256).astype(np.float64)
+            p = c[c > 0] / n
+            sent = float(-(p * np.log2(p)).sum()) if p.size else 0.0
+        else:
+            sent = 0.0
+        sections.append({
+            "vsize": vsize, "vaddr": vaddr, "rawsize": rawsize,
+            "rawptr": rawptr, "char": schar, "entropy": sent, "name": sname,
+        })
+        info["sections"] = sections
+
+    info["e_lfanew"] = e_lfanew
+    info["tstamp"] = tstamp
+    info["ep"] = ep
+    info["checksum"] = checksum
+    if pe32plus:
+        info["imagebase"] = struct.unpack_from("<Q", data, off + 24)[0] if off + 32 <= len(data) else 0
+    else:
+        info["imagebase"] = struct.unpack_from("<I", data, off + 28)[0] if off + 32 <= len(data) else 0
+
+    max_end = max((s["rawptr"] + s["rawsize"]) for s in sections) if sections else 0
+    overlay = max(0, len(data) - max_end)
+
+    ep_off = _rva_to_off(ep, sections) if ep else None
+    ep_bytes = data[ep_off:ep_off + 256] if ep_off is not None else b""
+    if len(ep_bytes) > 1:
+        n = len(ep_bytes)
+        arr = np.frombuffer(ep_bytes, dtype=np.uint8)
+        c = np.bincount(arr, minlength=256).astype(np.float64)
+        p = c[c > 0] / n
+        ep_entropy = float(-(p * np.log2(p)).sum()) if p.size else 0.0
+    else:
+        ep_entropy = 0.0
+
+    head = data[:1024]
+    n = len(head)
+    arr = np.frombuffer(head, dtype=np.uint8)
+    c = np.bincount(arr, minlength=256).astype(np.float64)
+    p = c[c > 0] / n
+    head_entropy = float(-(p * np.log2(p)).sum()) if p.size else 0.0
+
+    imp_rva, imp_size = data_dirs[1] if len(data_dirs) > 1 else (0, 0)
+    res_size = data_dirs[2][1] if len(data_dirs) > 2 else 0
+    tls_size = data_dirs[9][1] if len(data_dirs) > 9 else 0
+    bound_size = data_dirs[11][1] if len(data_dirs) > 11 else 0
+    iat_size = data_dirs[12][1] if len(data_dirs) > 12 else 0
+    delay_size = data_dirs[13][1] if len(data_dirs) > 13 else 0
+
+    info["global"] = [
+        machine / 65535.0,
+        min(nsec, 16) / 16.0,
+        (tstamp % 1000000) / 1000000.0,
+        min(optsize, 480) / 480.0,
+        chars / 65535.0,
+        magic / 547.0,
+        sizecode / 4194304.0,
+        sizeinit / 4194304.0,
+        sizeuninit / 4194304.0,
+        ep / 4194304.0,
+        basecode / 4194304.0,
+        sizeimage / 33554432.0,
+        sizeheaders / 65536.0,
+        checksum / 4294967295.0,
+        subsystem / 20.0,
+        dllchar / 65535.0,
+        rva_and_sizes / 16.0,
+        imp_size / 65536.0,
+        res_size / 4194304.0,
+        tls_size / 1024.0,
+        ep_entropy,
+        head_entropy,
+        overlay / max(len(data), 1),
+        1.0 if any(s["vaddr"] <= ep < s["vaddr"] + max(s["vsize"], 1) for s in sections) else 0.0,
+        bound_size / 65536.0,
+        iat_size / 65536.0,
+        delay_size / 65536.0,
+        symptr / 4194304.0,
+        min(symnum, 65535) / 65535.0,
+        min(len(data), 16777216) / 16777216.0,
+    ]
+    if len(info["global"]) < 24:
+        info["global"] = (info["global"] + [0.0] * 24)[:24]
+    else:
+        info["global"] = info["global"][:24]
+
+    if imp_rva and imp_size:
+        imp_off = _rva_to_off(imp_rva, sections)
+        if imp_off is not None:
+            step_thunk = 8 if pe32plus else 4
+            ordinal_flag = 1 << (63 if pe32plus else 31)
+            cur = imp_off
+            func_total = 0
+            ordinal_total = 0
+            for _ in range(4096):
+                if cur + 20 > len(data):
+                    break
+                oft, _ts, _fc, name_rva, ft = struct.unpack_from("<IIIII", data, cur)
+                if oft == 0 and name_rva == 0 and ft == 0:
+                    break
+                dll = _read_cstr(data, _rva_to_off(name_rva, sections))
+                if dll:
+                    info["dlls"].append(dll)
+                thunk_rva = oft if oft else ft
+                toff = _rva_to_off(thunk_rva, sections) if thunk_rva else None
+                cnt = 0
+                if toff is not None:
+                    t = toff
+                    while cnt < 8192 and func_total < 16384:
+                        if t + step_thunk > len(data):
+                            break
+                        val = struct.unpack_from("<Q" if pe32plus else "<I", data, t)[0]
+                        if val == 0:
+                            break
+                        if not (val & ordinal_flag):
+                            hoff = _rva_to_off(val & 0x7FFFFFFF, sections)
+                            fname = _read_cstr(data, hoff + 2 if hoff is not None else None)
+                            if fname:
+                                info["funcs"].append(fname)
+                        else:
+                            ordinal_total += 1
+                        cnt += 1
+                        func_total += 1
+                        t += step_thunk
+                cur += 20
+            info["ordinal_count"] = ordinal_total
+    return info
+
+
+def _entropy(raw):
+    if len(raw) < 2:
+        return 0.0
+    arr = np.frombuffer(raw, dtype=np.uint8)
+    c = np.bincount(arr, minlength=256).astype(np.float64)
+    p = c[c > 0] / arr.size
+    return float(-(p * np.log2(p)).sum())
+
+
+def _checksum_valid(data, info):
+    """PE 校验和验证（DWORD 累加算法，与 pefile.generate_checksum 一致，numpy 加速）。返回 0/1。"""
+    cval = info.get("checksum", 0)
+    if not cval:
+        return 0.0
+    e_lfanew = info.get("e_lfanew", 0)
+    cf = e_lfanew + 24 + 64  # OptionalHeader.CheckSum 字段偏移
+    arr = np.frombuffer(data, dtype=np.uint8)
+    orig_len = arr.size
+    pad = (-arr.size) % 4
+    if pad:
+        arr = np.concatenate([arr, np.zeros(pad, dtype=np.uint8)])
+    d = arr.view("<u4").astype(np.uint64)
+    if cf % 4 == 0 and cf + 4 <= arr.size:
+        d[cf // 4] = 0
+    s = int(d.sum())
+    while s >= 4294967296:
+        s = (s & 0xFFFFFFFF) + (s >> 32)
+    s = (s & 0xFFFF) + (s >> 16)
+    s = s + (s >> 16)
+    s = (s & 0xFFFF) + orig_len
+    return 1.0 if s == cval else 0.0
+
+
+def _tls_callback_count(data, info):
+    dd = info.get("dd") or []
+    if len(dd) <= 9:
+        return 0.0
+    rva, size = dd[9]
+    if not rva or size < 16:
+        return 0.0
+    off = _rva_to_off(rva, info["sections"])
+    if off is None:
+        return 0.0
+    plus = info.get("pe32plus", False)
+    cb_field = off + (24 if plus else 12)  # AddressOfCallBacks
+    field_size = 8 if plus else 4
+    if cb_field + field_size > len(data):
+        return 0.0
+    va = struct.unpack_from("<Q" if plus else "<I", data, cb_field)[0]
+    if not va:
+        return 0.0
+    coff = _rva_to_off(va - info.get("imagebase", 0), info["sections"])
+    if coff is None:
+        return 0.0
+    cnt = 0
+    while cnt < 64 and coff + field_size <= len(data):
+        v = struct.unpack_from("<Q" if plus else "<I", data, coff)[0]
+        if v == 0:
+            break
+        cnt += 1
+        coff += field_size
+    return float(cnt)
+
+
+def _rich_info(data, e_lfanew):
+    """解析 Rich Header，返回 (编译器id列表, 计数列表, rich偏移) 或 None。"""
+    limit = min(e_lfanew, len(data))
+    if limit < 16:
+        return None
+    idx = data.find(b"Rich", 0, limit)
+    if idx < 8 or idx + 8 > len(data):
+        return None
+    key = struct.unpack_from("<I", data, idx + 4)[0]
+    dans = struct.pack("<I", 0x536E6144 ^ key)
+    start = data.find(dans, 0, idx)
+    if start < 0:
+        return None
+    ids, counts = [], []
+    p = start + 16
+    while p + 8 <= idx and len(ids) < 512:
+        a, b = struct.unpack_from("<II", data, p)
+        a ^= key
+        b ^= key
+        if a == 0 and b == 0:
+            break
+        ids.append(a)
+        counts.append(b)
+        p += 8
+    return ids, counts, idx
+
+
+def _export_feats(data, info):
+    feats = np.zeros(8, dtype=np.float64)
+    dd = info.get("dd") or []
+    if not dd:
+        return feats
+    rva, size = dd[0]
+    if not rva or not size:
+        return feats
+    off = _rva_to_off(rva, info["sections"])
+    if off is None or off + 40 > len(data):
+        return feats
+    _c, _tds, _maj, _min, _nm, _base, nfuncs, nnames, afuncs, anames, _ao = \
+        struct.unpack_from("<IIHHIIIIIII", data, off)
+    nfuncs = min(nfuncs, 65536)
+    nnames = min(nnames, 65536)
+    feats[0] = 1.0 if nfuncs else 0.0
+    feats[1] = nfuncs / 8192.0
+    feats[2] = nnames / max(nfuncs, 1)
+    feats[6] = min(size, 65536) / 65536.0
+    feats[7] = 1.0 if (nfuncs and not nnames) else 0.0
+    # 转发占比
+    foff = _rva_to_off(afuncs, info["sections"])
+    fwd = 0
+    if foff is not None:
+        checked = min(nfuncs, 1024)
+        for i in range(checked):
+            if foff + i * 4 + 4 > len(data):
+                break
+            frva = struct.unpack_from("<I", data, foff + i * 4)[0]
+            if rva <= frva < rva + size:
+                fwd += 1
+        feats[3] = fwd / max(checked, 1)
+    # 导出名熵与平均长度
+    noff = _rva_to_off(anames, info["sections"])
+    if noff is not None and nnames:
+        total_len = 0
+        ent_blob = bytearray()
+        cnt = min(nnames, 2048)
+        for i in range(cnt):
+            if noff + i * 4 + 4 > len(data):
+                break
+            nrva = struct.unpack_from("<I", data, noff + i * 4)[0]
+            nm = _read_cstr(data, _rva_to_off(nrva, info["sections"]), limit=128)
+            total_len += len(nm)
+            ent_blob.extend(nm.encode("latin-1", "ignore"))
+        if total_len:
+            feats[4] = (total_len / cnt) / 64.0
+            feats[5] = min(_entropy(bytes(ent_blob[:65536])), 8.0) / 8.0
+    return feats
+
+
+def _walk_res(data, dir_off, base, sections, depth, tid, out):
+    if depth > 3 or len(out) >= 512:
+        return
+    if dir_off + 16 > len(data):
+        return
+    _c, _tds, _maj, _min, nnamed, nid = struct.unpack_from("<IIHHHH", data, dir_off)
+    n = min(nnamed + nid, 4096)
+    for i in range(n):
+        if len(out) >= 512:
+            return
+        eo = dir_off + 16 + i * 8
+        if eo + 8 > len(data):
+            return
+        _nm, nxt = struct.unpack_from("<II", data, eo)
+        cur_tid = (i if i < nid else -1) if depth == 1 else tid
+        if nxt & 0x80000000:
+            _walk_res(data, base + (nxt & 0x7FFFFFFF), base, sections, depth + 1, cur_tid, out)
+        else:
+            lo = base + nxt
+            if lo + 16 <= len(data):
+                drva, dsize = struct.unpack_from("<II", data, lo)
+                out.append((cur_tid, drva, dsize))
+
+
+def _resource_feats(data, info):
+    feats = np.zeros(12, dtype=np.float64)
+    dd = info.get("dd") or []
+    if not dd or len(dd) <= 2:
+        return feats
+    rva, size = dd[2]
+    if not rva or not size:
+        return feats
+    base = _rva_to_off(rva, info["sections"])
+    if base is None:
+        return feats
+    leaves = []
+    _walk_res(data, base, base, info["sections"], 1, -1, leaves)
+    if not leaves:
+        return feats
+    total = sum(min(s, 16777216) for _, _r, s in leaves)
+    maxs = max(min(s, 16777216) for _, _r, s in leaves)
+    ents = []
+    types = set()
+    for tid, drva, dsize in leaves:
+        types.add(tid)
+        off = _rva_to_off(drva, info["sections"])
+        if off is None:
+            continue
+        raw = data[off:off + min(dsize, 262144)]
+        ents.append(_entropy(raw))
+    feats[0] = len(leaves) / 64.0
+    feats[1] = total / max(len(data), 1)
+    feats[2] = maxs / max(len(data), 1)
+    if ents:
+        feats[3] = sum(ents) / len(ents) / 8.0
+        feats[4] = max(ents) / 8.0
+    flags = {
+        5: 5, 16: 6, 24: 7, 3: 8, 6: 9, 2: 10,
+    }
+    known = set(flags) | {1, 4}
+    feats[11] = 1.0 if any(t not in known for t in types) else 0.0
+    for t, pos in flags.items():
+        if t in types:
+            feats[pos] = 1.0
+    return feats
+
+
+def _string_feats(data):
+    """字符串计数特征 8 维（无哈希桶，仅精确关键词计数，避免误报噪声）。"""
+    counters = np.zeros(8, dtype=np.float64)
+    region = data[:BYTE_STAT_CAP]
+    strs = _STR_RE.findall(region)
+    total = len(strs)
+    if not total:
+        return counters
+    sample = strs if total <= 20000 else strs[::max(1, total // 20000)][:20000]
+    lensum = 0
+    for s in sample:
+        lensum += len(s)
+        low = s.lower()
+        if b"http://" in low or b"https://" in low or b"ftp://" in low:
+            counters[0] += 1.0
+        if _IP_RE.search(s):
+            counters[1] += 1.0
+        if b"hkey_" in low or b"software\\" in low or b"currentversion" in low:
+            counters[2] += 1.0
+        if (b"cmd.exe" in low or b"powershell" in low or b"wscript" in low
+                or b"rundll32" in low or b"regsvr32" in low or b"mshta" in low):
+            counters[3] += 1.0
+        if b"currentversion\\run" in low or b"schtasks" in low or b"\\startup" in low:
+            counters[4] += 1.0
+        if b"crypt" in low or b".locked" in low or b"decrypt" in low or b"readme" in low:
+            counters[5] += 1.0
+    ns = len(sample)
+    for i in range(6):
+        counters[i] = min(counters[i], 100) / 100.0
+    counters[6] = min(total, 20000) / 20000.0
+    counters[7] = (lensum / max(ns, 1)) / 128.0
+    return counters
+
+
+def _api_feats(info):
+    feats = np.zeros(len(_SENSITIVE_APIS), dtype=np.float64)
+    if not info["funcs"]:
+        return feats
+    counts = {}
+    for f in info["funcs"]:
+        base = f.lower()
+        if len(base) > 2 and base[-1] in ("a", "w") and not base[-2].isdigit():
+            base = base[:-1]
+        if base in _API_INDEX:
+            counts[base] = counts.get(base, 0) + 1
+    for name, c in counts.items():
+        feats[_API_INDEX[name]] = min(c, 8) / 8.0
+    return feats
+
+
+def _extra_feats(data, info):
+    """追加的 86 维：节区属性 24 + 全局扩展 16 + Rich 统计 8 + 导出 8 + 资源 12 + API 10 + 字符串 8"""
+    sections = info["sections"]
+    ep = info.get("ep", 0)
+
+    # ---- A. 节区属性 24 ----
+    sec_char = np.zeros(24, dtype=np.float64)
+    nsec = len(sections)
+    if nsec:
+        exec_flags = [(s["char"] & 0x20000000) != 0 for s in sections]
+        for i in range(min(nsec, 16)):
+            sec_char[i] = 1.0 if exec_flags[i] else 0.0
+        wx = [(s["char"] & 0x20000000) and (s["char"] & 0x80000000) for s in sections]
+        sec_char[16] = sum(wx) / nsec
+        sec_char[17] = 1.0 if any(wx) else 0.0
+        ep_sec = next((i for i, s in enumerate(sections)
+                       if s["vaddr"] <= ep < s["vaddr"] + max(s["vsize"], 1)), None)
+        sec_char[18] = 1.0 if (ep_sec is not None and ep_sec < len(wx) and wx[ep_sec]) else 0.0
+        sec_char[19] = sum(1 for s in sections if s["char"] & 0x20) / nsec
+        sec_char[20] = sum(1 for s in sections if s["rawsize"] == 0 and s["vsize"] > 0) / nsec
+        names = [s["name"].lower().lstrip(".") for s in sections]
+        sec_char[21] = 1.0 - sum(1 for nm in names if nm in _COMMON_SECTIONS) / nsec
+        sec_char[22] = 1.0 if any(nm in _PACKER_SECTIONS for nm in names) else 0.0
+        sec_char[23] = sum(1 for s in sections if s["vsize"] > s["rawsize"] * 2) / nsec
+
+    # ---- B. 全局扩展 16 ----
+    dd = info.get("dd") or []
+    glob = np.zeros(16, dtype=np.float64)
+    if dd:
+        cert_rva, cert_size = dd[4] if len(dd) > 4 else (0, 0)
+        glob[0] = 1.0 if cert_size else 0.0
+        glob[1] = min(cert_size, 65536) / 65536.0
+        glob[2] = 1.0 if (len(dd) > 14 and dd[14][1]) else 0.0  # .NET COM dir
+        glob[3] = 1.0 if (len(dd) > 9 and dd[9][1]) else 0.0
+        glob[4] = _tls_callback_count(data, info) / 64.0
+        ep_sec = next((i for i, s in enumerate(sections)
+                       if s["vaddr"] <= ep < s["vaddr"] + max(s["vsize"], 1)), None)
+        if ep_sec is not None:
+            glob[5] = 1.0 if ep_sec == len(sections) - 1 else 0.0
+            s = sections[ep_sec]
+            glob[6] = (ep - s["vaddr"]) / max(s["vsize"], 1)
+            glob[12] = 1.0 if s["char"] & 0x80000000 else 0.0
+        max_end = max((s["rawptr"] + s["rawsize"]) for s in sections) if sections else 0
+        overlay_raw = data[max_end:max_end + 1048576]
+        glob[7] = _entropy(overlay_raw) / 8.0
+        glob[9] = 1.0 if (len(dd) > 6 and dd[6][1]) else 0.0
+        glob[10] = sum(1 for r, s2 in dd if r and s2) / 16.0
+        glob[13] = 1.0 if any(
+            sections[i]["rawptr"] < sections[j]["rawptr"] + sections[j]["rawsize"]
+            and sections[j]["rawptr"] < sections[i]["rawptr"] + sections[i]["rawsize"]
+            for i in range(nsec) for j in range(i + 1, nsec)
+            if sections[i]["rawsize"] and sections[j]["rawsize"]
+        ) else 0.0
+        glob[14] = 1.0 if (len(dd) > 10 and dd[10][1]) else 0.0
+        glob[15] = 1.0 if (len(dd) > 5 and dd[5][1]) else 0.0
+    ts = info.get("tstamp", 0)
+    glob[11] = 1.0 if (ts == 0 or ts > 2147483647) else 0.0
+    glob[8] = _checksum_valid(data, info)
+
+    # ---- C. Rich Header 统计 8 ----
+    rich = np.zeros(8, dtype=np.float64)
+    ri = _rich_info(data, info.get("e_lfanew", 0))
+    if ri:
+        ids, counts, ridx = ri
+        if ids:
+            prods = {a >> 16 for a in ids}
+            builds = {a & 0xFFFF for a in ids}
+            rich[0] = 1.0
+            rich[1] = len(ids) / 512.0
+            rich[2] = len(prods) / 256.0
+            rich[3] = len(builds) / 1024.0
+            rich[4] = sum(counts) / 4096.0
+            rich[5] = max(counts) / 1024.0
+            rich[6] = ridx / max(info.get("e_lfanew", 1), 1)
+            rich[7] = 1.0 if all(c > 0 for c in counts) else 0.0
+
+    # ---- D. 导出 8 / E. 资源 12 ----
+    exp = _export_feats(data, info)
+    res = _resource_feats(data, info)
+
+    # ---- F. 敏感 API 128 ----
+    apis = _api_feats(info)
+
+    # ---- G. 字符串计数 8 ----
+    strs = _string_feats(data)
+
+    return np.concatenate([sec_char, glob, rich, exp, res, apis, strs])
+
+
+def extract_features(data):
+    if not is_pe(data):
+        return None
+    buf = bytes(data[:BYTE_STAT_CAP])
+    n = len(buf)
+    arr = np.frombuffer(buf, dtype=np.uint8)
+    hist = np.bincount(arr, minlength=256).astype(np.float64) / max(n, 1)
+    ents, means, divs = _chunk_stats(arr)
+
+    info = _parse_pe(data)
+    sec_feats = np.zeros(N_SECTIONS * 6, dtype=np.float64)
+    for i, s in enumerate(info["sections"][:N_SECTIONS]):
+        base = i * 6
+        sec_feats[base + 0] = s["vsize"] / 16777216.0
+        sec_feats[base + 1] = s["vaddr"] / 16777216.0
+        sec_feats[base + 2] = s["rawsize"] / 16777216.0
+        sec_feats[base + 3] = s["rawptr"] / 16777216.0
+        sec_feats[base + 4] = s["entropy"]
+        sec_feats[base + 5] = s["rawsize"] / max(s["vsize"], 1) if s["vsize"] else 0.0
+
+    if info["global"] is None:
+        glob = np.zeros(24, dtype=np.float64)
+    else:
+        glob = np.asarray(info["global"], dtype=np.float64)
+
+    dll_feats = np.zeros(96, dtype=np.float64)
+    for d in info["dlls"]:
+        dll_feats[zlib.crc32(d.lower().encode("latin-1", "ignore")) % 96] += 1.0
+    nd = max(len(info["dlls"]), 1)
+    dll_feats /= nd
+
+    func_feats = np.zeros(128, dtype=np.float64)
+    for f in info["funcs"]:
+        func_feats[zlib.crc32(f.encode("latin-1", "ignore")) % 128] += 1.0
+    nf = max(len(info["funcs"]), 1)
+    func_feats /= nf
+
+    per_dll = []
+    if info["dlls"]:
+        seen = {}
+        for d in info["dlls"]:
+            seen[d] = seen.get(d, 0) + 1
+        per_dll = list(seen.values())
+    counts = np.asarray(per_dll, dtype=np.float64)
+    ordinal_ratio = 0.0
+    stats = np.zeros(16, dtype=np.float64)
+    stats[0] = len(info["dlls"]) / 64.0
+    stats[1] = len(info["funcs"]) / 8192.0
+    stats[2] = counts.max() / 2048.0 if counts.size else 0.0
+    stats[3] = counts.mean() / 128.0 if counts.size else 0.0
+    stats[4] = counts.std() / 64.0 if counts.size else 0.0
+    stats[5] = len(set(info["funcs"])) / nf
+    stats[6] = min(len(info["funcs"]) / max(len(buf) / 1024.0, 1), 10.0) / 10.0
+    stats[7] = (sum(len(d) for d in info["dlls"]) / nd) / 64.0
+    stats[8] = (sum(len(f) for f in info["funcs"]) / nf) / 128.0
+    stats[9] = counts.min() / 64.0 if counts.size else 0.0
+    stats[10] = info.get("ordinal_count", 0) / max(len(info["funcs"]) + info.get("ordinal_count", 0), 1)
+    stats[11] = len(set(info["dlls"])) / nd
+    stats[12] = 1.0 if any(d.endswith(".dll") for d in info["dlls"]) else 0.0
+    stats[13] = 1.0 if any(not d for d in info["dlls"]) else 0.0
+    stats[14] = min(nf, 16384) / 16384.0
+    stats[15] = 1.0 if not info["dlls"] else 0.0
+
+    extra = _extra_feats(data, info)
+    feats = np.concatenate([hist, ents, means, divs, sec_feats, glob, dll_feats, func_feats, stats, extra])
+    feats = np.nan_to_num(feats, nan=0.0, posinf=0.0, neginf=0.0)
+    return feats[:FEATURE_DIM].astype(np.float32)
+
+
+def load_model(path=None):
+    if lightgbm is None:
+        raise RuntimeError("lightgbm not installed")
+    return lightgbm.Booster(model_file=path or MODEL_PATH)
+
+
+def scan_bytes(data, model):
+    if not is_pe(data):
+        return "error", None
+    feats = extract_features(data)
+    if feats is None:
+        return "error", None
+    prob = float(model.predict(feats.reshape(1, -1))[0])
+    score = int(round(prob * 100))
+    if score >= MALWARE_THRESHOLD:
+        return "malware", score
+    return "clean", score
+
+
+def scan_file(path, model):
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+    except OSError:
+        return "error", None
+    return scan_bytes(data, model)
+
+
+def _walk_into_queue(root, q):
+    for dirpath, _dirnames, filenames in os.walk(root):
+        for name in filenames:
+            q.put(os.path.join(dirpath, name))
+
+
+def scan_folder(root, model):
+    q = queue.Queue()
+    results = []
+    lock = threading.Lock()
+
+    def worker():
+        while True:
+            item = q.get()
+            if item is None:
+                q.task_done()
+                break
+            try:
+                status, score = scan_file(item, model)
+            except Exception:
+                status, score = "error", None
+            with lock:
+                results.append((item, status, score))
+                try:
+                    rel = os.path.relpath(item, root)
+                except ValueError:
+                    rel = item
+                if status == "malware":
+                    print(f"[Malware] {rel} | Score:{score}")
+                elif status == "clean":
+                    print(f"[Clean] {rel} | Score:{score}")
+                else:
+                    print(f"[Error] {rel} | Score:None")
+            q.task_done()
+
+    threads = [threading.Thread(target=worker, daemon=True) for _ in range(SCAN_WORKERS)]
+    for t in threads:
+        t.start()
+    _walk_into_queue(root, q)
+    q.join()
+    for _ in threads:
+        q.put(None)
+    for t in threads:
+        t.join()
+
+    malware = [(p, s) for p, st, s in results if st == "malware"]
+    n_clean = sum(1 for _, st, _ in results if st == "clean")
+    n_error = sum(1 for _, st, _ in results if st == "error")
+    print("------[Return]------")
+    for p, s in malware:
+        try:
+            rel = os.path.relpath(p, root)
+        except ValueError:
+            rel = p
+        print(f"Malware | {rel} | Score:{s}")
+    print(f"Malware:{len(malware)} | Clean:{n_clean} |Error:{n_error}")
+
+
+def resolve_target(args):
+    if not args:
+        return None
+    first = args[0]
+    if os.path.exists(first):
+        return first
+    joined = " ".join(args)
+    if os.path.exists(joined):
+        return joined
+    cur = first
+    for arg in args[1:]:
+        cand = cur + " " + arg
+        if os.path.exists(cand):
+            return cand
+        cur = cand
+    return first
+
+
+def main():
+    target = resolve_target(sys.argv[1:])
+    if target is None:
+        print("Usage: SevenEngine.py <file / folder path>")
+        return 1
+    try:
+        model = load_model()
+    except Exception as e:
+        print(f"Return:Error")
+        print("Score:None")
+        print(f"Model load failed: {e}", file=sys.stderr)
+        return 1
+
+    if os.path.isfile(target):
+        status, score = scan_file(target, model)
+        if status == "malware":
+            print("Return:ML:Gen.Malware")
+            print(f"Score:{score}")
+        elif status == "clean":
+            print("Return:ML:Clean")
+            print(f"Score:{score}")
+        else:
+            print("Return:Error")
+            print("Score:None")
+        return 0
+
+    if os.path.isdir(target):
+        scan_folder(target, model)
+        return 0
+
+    print("Return:Error")
+    print("Score:None")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

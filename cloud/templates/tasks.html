@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Batch Tasks · SevenEngine</title>
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<style>
+:root{
+  --bg:#f5f7fa; --side:#0f172a; --side-txt:#94a3b8; --side-on:#e2e8f0;
+  --panel:#ffffff; --border:#e3e8ef; --text:#1f2937; --muted:#6b7280;
+  --accent:#2563eb; --accent-soft:#eff4ff; --ok:#16a34a; --ok-soft:#dcfce7;
+  --warn:#d97706; --warn-soft:#fef3c7; --bad:#dc2626; --bad-soft:#fee2e2;
+  --mono:Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;display:flex;min-height:100vh}
+aside{width:220px;flex:none;background:var(--side);display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
+.brand img{width:34px;height:34px}
+.brand b{color:#fff;font-size:14.5px;line-height:1.25}
+.brand small{color:var(--side-txt);font-size:10.5px;display:block}
+nav{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;color:var(--side-txt);text-decoration:none;font-size:13.5px;cursor:pointer;transition:background .15s ease,color .15s ease,transform .15s ease}
+nav a svg{width:16px;height:16px;flex:none}
+nav a:hover{background:rgba(255,255,255,.07);color:var(--side-on);transform:translateX(2px)}
+nav a.on{background:var(--accent);color:#fff}
+nav a.on:hover{transform:none}
+.sidefoot{margin-top:auto;padding:10px 8px;color:#475569;font-size:10.5px;line-height:1.7}
+.wrap{flex:1;min-width:0;display:flex;flex-direction:column}
+topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center}
+topbar h1{font-size:16px;font-weight:600}
+.conn{margin-left:auto;display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+.conn i{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block;transition:background .3s}
+.conn.off i{background:var(--bad)}
+main{flex:1;padding:24px 28px;max-width:1180px;width:100%}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px}
+.panel h2{font-size:12.5px;font-weight:600;color:var(--muted);letter-spacing:.4px;padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
+.panel h2 svg{width:15px;height:15px}
+.panel .body{padding:22px}
+.drop{border:2px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#fafbfe}
+.drop:hover{border-color:var(--accent);background:var(--accent-soft)}
+.drop svg{width:34px;height:34px;stroke:var(--accent);margin-bottom:8px}
+.drop h3{font-size:14.5px;font-weight:600}
+.drop p{color:var(--muted);font-size:12px;margin-top:4px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s;background:var(--accent);color:#fff}
+.btn:hover{background:#1d4ed8}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:#fff;color:var(--accent);border-color:var(--border)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.btn svg{width:14px;height:14px}
+input[type=file]{display:none}
+.prog{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.prog .bar{flex:1;height:7px;background:#eef1f6;border-radius:4px;overflow:hidden;min-width:200px}
+.prog .bar em{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .3s}
+.prog .pct{font-weight:700;font-size:13px;min-width:44px;text-align:right}
+.prog .cnt{color:var(--muted);font-size:12px}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:12px;font-weight:600}
+.pill svg{width:13px;height:13px}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.info{background:var(--accent-soft);color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{color:var(--muted);font-weight:600;text-align:left;padding:10px 18px;border-bottom:1px solid var(--border);background:#fafbfc;font-size:11px;letter-spacing:.4px}
+td{padding:9px 18px;border-bottom:1px solid var(--border);word-break:break-all}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:#fafbfe}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.score{font-family:var(--mono);font-weight:600}
+.score.bad{color:var(--bad)}
+.score.good{color:var(--ok)}
+.score.warn{color:var(--warn)}
+.foot{padding:12px 28px;color:#9ca3af;font-size:11px;border-top:1px solid var(--border);margin-top:auto}
+.hidden{display:none}
+code.taskid{font-family:var(--mono);font-size:12px;background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:6px}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <img src="/static/logo.svg" alt="logo">
+    <div><b>SevenEngine</b><small>V3 Flash · Cloud</small></div>
+  </div>
+  <nav>
+    <a href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a>
+    <a href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Cloud Scan</a>
+    <a href="/tasks" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Batch Tasks</a>
+    <a href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About Engine</a>
+  </nav>
+  <div class="sidefoot">NewEra Studio<br>SevenEngine V3 Flash<br>Cloud inference endpoint</div>
+</aside>
+<div class="wrap">
+  <topbar>
+    <h1>Batch Tasks</h1>
+    <div class="conn" id="conn"><i></i><span id="connTxt">Checking</span></div>
+  </topbar>
+  <main>
+    <div class="panel">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>New Batch</h2>
+      <div class="body">
+        <div class="drop" id="drop">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <h3>Drop multiple PE files</h3>
+          <p>up to 32 files per task, each at most 16 MB</p>
+          <div style="margin-top:12px"><label class="btn ghost" for="files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Browse files</label></div>
+          <input type="file" id="files" multiple accept=".exe,.dll,.sys,.scr,.com,.ocx,.cpl,.drv,.bin,*/*">
+        </div>
+        <div id="picked" class="hidden" style="margin-top:14px">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span class="pill info" id="p-count"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>0 files</span>
+            <button class="btn" id="go" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>Start batch</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="live">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Running Task <code class="taskid" id="t-id">-</code></h2>
+      <div class="prog">
+        <div class="bar"><em id="t-bar" style="width:0%"></em></div>
+        <span class="pct" id="t-pct">0%</span>
+        <span class="cnt" id="t-cnt">0 / 0</span>
+      </div>
+      <div class="body stats">
+        <span class="pill ok" id="t-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Clean 0</span>
+        <span class="pill bad" id="t-bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg>Malware 0</span>
+        <span class="pill warn" id="t-err"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg>Error 0</span>
+        <span class="pill info" id="t-ms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>- ms total</span>
+      </div>
+      <table>
+        <thead><tr><th>File</th><th>Size</th><th>Score</th><th>Verdict</th><th>Time</th></tr></thead>
+        <tbody id="t-rows"><tr><td colspan="5" class="empty">No results yet</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+  <div class="foot">SevenEngine V3 Flash · Cloud inference · NewEra Studio</div>
+</div>
+<script>
+const drop=document.getElementById('drop'),files=document.getElementById('files');
+let picked=[];
+drop.addEventListener('click',()=>files.click());
+files.addEventListener('change',()=>{picked=Array.from(files.files).slice(0,32);renderPicked()});
+function renderPicked(){
+  document.getElementById('picked').classList.remove('hidden');
+  document.getElementById('p-count').innerHTML=svgDoc()+' '+picked.length+' files';
+  document.getElementById('go').disabled=picked.length===0;
+}
+function svgDoc(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'}
+document.getElementById('go').addEventListener('click',async()=>{
+  const fd=new FormData();
+  picked.forEach(f=>fd.append('files',f));
+  document.getElementById('go').disabled=true;
+  try{
+    const r=await fetch('/api/scan/batch',{method:'POST',body:fd});
+    const j=await r.json();
+    if(j.ok){
+      document.getElementById('live').classList.remove('hidden');
+      document.getElementById('t-id').textContent=j.task_id;
+      poll(j.task_id);
+    }
+  }catch(e){document.getElementById('go').disabled=false}
+});
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function pillFor(st){
+  if(st==='malware')return '<span class="pill bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg>Malware</span>';
+  if(st==='clean')return '<span class="pill ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Clean</span>';
+  return '<span class="pill warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg>Error</span>';
+}
+function scoreCls(s){if(s===null||s===undefined)return'warn';return s>=85?'bad':(s>=60?'warn':'good')}
+let timer=null;
+async function poll(tid){
+  clearTimeout(timer);
+  try{
+    const r=await fetch('/api/task/'+tid);const j=await r.json();
+    if(!j.ok)return;
+    const total=j.total||0,done=j.done||0;
+    document.getElementById('t-bar').style.width=(total?done/total*100:0)+'%';
+    document.getElementById('t-pct').textContent=(total?Math.round(done/total*100):0)+'%';
+    document.getElementById('t-cnt').textContent=done+' / '+total;
+    let nOk=0,nBad=0,nErr=0,sumMs=0;
+    const rows=(j.results||[]).map(x=>{
+      if(x.status==='clean')nOk++;else if(x.status==='malware')nBad++;else nErr++;
+      sumMs+=x.ms||0;
+      return '<tr><td>'+esc(x.name)+'</td><td>'+(x.size!==undefined?(x.size/1024).toFixed(1)+' KB':'-')+'</td>'
+        +'<td class="score '+scoreCls(x.score)+'">'+(x.score===null||x.score===undefined?'N/A':x.score)+'</td>'
+        +'<td>'+pillFor(x.status)+'</td><td>'+(x.ms||0)+' ms</td></tr>';
+    }).join('');
+    document.getElementById('t-ok').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Clean '+nOk;
+    document.getElementById('t-bad').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg>Malware '+nBad;
+    document.getElementById('t-err').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg>Error '+nErr;
+    document.getElementById('t-ms').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'+sumMs+' ms total';
+    document.getElementById('t-rows').innerHTML=rows||'<tr><td colspan="5" class="empty">No results yet</td></tr>';
+    if(j.state!=='done')timer=setTimeout(()=>poll(tid),800);
+    else document.getElementById('go').disabled=false;
+  }catch(e){timer=setTimeout(()=>poll(tid),1500)}
+}
+async function ping(){
+  const c=document.getElementById('conn'),t=document.getElementById('connTxt');
+  try{const r=await fetch('/api/health');const j=await r.json();
+    if(j.ok){c.classList.remove('off');t.textContent='Online'}else{c.classList.add('off');t.textContent='Engine offline'}
+  }catch(e){c.classList.add('off');t.textContent='Disconnected'}
+}
+ping();
+</script>
+</body>
+</html>

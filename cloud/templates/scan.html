@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cloud Scan · SevenEngine</title>
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<style>
+:root{
+  --bg:#f5f7fa; --side:#0f172a; --side-txt:#94a3b8; --side-on:#e2e8f0;
+  --panel:#ffffff; --border:#e3e8ef; --text:#1f2937; --muted:#6b7280;
+  --accent:#2563eb; --accent-soft:#eff4ff; --ok:#16a34a; --ok-soft:#dcfce7;
+  --warn:#d97706; --warn-soft:#fef3c7; --bad:#dc2626; --bad-soft:#fee2e2;
+  --mono:Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;display:flex;min-height:100vh}
+aside{width:220px;flex:none;background:var(--side);display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
+.brand img{width:34px;height:34px}
+.brand b{color:#fff;font-size:14.5px;line-height:1.25}
+.brand small{color:var(--side-txt);font-size:10.5px;display:block}
+nav{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;color:var(--side-txt);text-decoration:none;font-size:13.5px;cursor:pointer;transition:background .15s ease,color .15s ease,transform .15s ease}
+nav a svg{width:16px;height:16px;flex:none}
+nav a:hover{background:rgba(255,255,255,.07);color:var(--side-on);transform:translateX(2px)}
+nav a.on{background:var(--accent);color:#fff}
+nav a.on:hover{transform:none}
+.sidefoot{margin-top:auto;padding:10px 8px;color:#475569;font-size:10.5px;line-height:1.7}
+.wrap{flex:1;min-width:0;display:flex;flex-direction:column}
+topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center}
+topbar h1{font-size:16px;font-weight:600}
+.conn{margin-left:auto;display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+.conn i{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block;transition:background .3s}
+.conn.off i{background:var(--bad)}
+main{flex:1;padding:24px 28px;max-width:1180px;width:100%}
+.steps{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.step{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:9px;background:#eef1f6;color:var(--muted);font-size:12px;font-weight:600;transition:all .2s}
+.step svg{width:13px;height:13px}
+.step.on{background:var(--accent-soft);color:var(--accent)}
+.step.done{background:var(--ok-soft);color:var(--ok)}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.panel h2{font-size:12.5px;font-weight:600;color:var(--muted);letter-spacing:.4px;padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
+.panel h2 svg{width:15px;height:15px}
+.panel .body{padding:22px}
+.drop{border:2px dashed var(--border);border-radius:12px;padding:36px 22px;text-align:center;cursor:pointer;transition:all .2s;background:#fafbfe}
+.drop:hover{border-color:var(--accent);background:var(--accent-soft)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft);transform:scale(1.005)}
+.drop svg{width:38px;height:38px;stroke:var(--accent);margin-bottom:10px}
+.drop h3{font-size:15px;font-weight:600}
+.drop p{color:var(--muted);font-size:12.5px;margin-top:5px}
+.drop .or{display:inline-block;margin-top:10px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s;background:var(--accent);color:#fff}
+.btn:hover{background:#1d4ed8;transform:translateY(-1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn.ghost{background:#fff;color:var(--accent);border-color:var(--border)}
+.btn.ghost:hover{background:var(--accent-soft)}
+.btn svg{width:14px;height:14px}
+input[type=file]{display:none}
+.meta{display:grid;grid-template-columns:88px 1fr;gap:6px 12px;font-size:13px;margin-top:14px}
+.meta i{color:var(--muted);font-style:normal}
+.meta b{font-weight:500;word-break:break-all;font-family:var(--mono);font-size:12.5px}
+.gauge-wrap{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.gauge{position:relative;width:150px;height:150px;flex:none}
+.gauge svg{width:150px;height:150px;transform:rotate(-90deg)}
+.gauge .track{stroke:#eef1f6}
+.gauge .bar{stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.2,.8,.3,1)}
+.gauge .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge .num b{font-size:30px;font-weight:700;line-height:1}
+.gauge .num span{color:var(--muted);font-size:10.5px;margin-top:4px;letter-spacing:.5px}
+.verdict{flex:1;min-width:220px}
+.verdict .lbl{font-size:11.5px;letter-spacing:.6px;color:var(--muted);font-weight:600}
+.verdict .val{font-size:24px;font-weight:700;margin-top:6px}
+.verdict .val.clean{color:var(--ok)}
+.verdict .val.malware{color:var(--bad)}
+.verdict .val.error{color:var(--warn)}
+.verdict .desc{color:var(--muted);font-size:12.5px;margin-top:8px;line-height:1.6}
+.chips{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:9px;font-size:11.5px;font-weight:600}
+.chip svg{width:12px;height:12px}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.info{background:var(--accent-soft);color:var(--accent)}
+.rbar{height:7px;background:#eef1f6;border-radius:4px;overflow:hidden;margin-top:10px}
+.rbar em{display:block;height:100%;border-radius:4px;transition:width .6s ease}
+.hidden{display:none}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.foot{padding:12px 28px;color:#9ca3af;font-size:11px;border-top:1px solid var(--border);margin-top:auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin 1s linear infinite}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <img src="/static/logo.svg" alt="logo">
+    <div><b>SevenEngine</b><small>V3 Flash · Cloud</small></div>
+  </div>
+  <nav>
+    <a href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a>
+    <a href="/scan" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Cloud Scan</a>
+    <a href="/tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Batch Tasks</a>
+    <a href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About Engine</a>
+  </nav>
+  <div class="sidefoot">NewEra Studio<br>SevenEngine V3 Flash<br>Cloud inference endpoint</div>
+</aside>
+<div class="wrap">
+  <topbar>
+    <h1>Cloud Scan</h1>
+    <div class="conn" id="conn"><i></i><span id="connTxt">Checking</span></div>
+  </topbar>
+  <main>
+    <div class="steps">
+      <span class="step on" id="s1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>1 · Upload</span>
+      <span class="step" id="s2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>2 · Inference</span>
+      <span class="step" id="s3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>3 · Verdict</span>
+    </div>
+
+    <div class="panel">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Sample Upload</h2>
+      <div class="body">
+        <div class="drop" id="drop">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <h3>Drop a PE file here</h3>
+          <p>exe · dll · sys · scr · com — max 16 MB, content inspected by magic bytes</p>
+          <span class="or"><label class="btn ghost" for="file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Browse files</label></span>
+          <input type="file" id="file" accept=".exe,.dll,.sys,.scr,.com,.ocx,.cpl,.drv,.bin,*/*">
+        </div>
+        <div id="upmeta" class="hidden">
+          <div class="meta">
+            <i>Filename</i><b id="m-name">-</b>
+            <i>Size</i><b id="m-size">-</b>
+            <i>MD5</i><b id="m-md5">-</b>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="result" style="margin-top:16px">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Verdict</h2>
+      <div class="body">
+        <div class="gauge-wrap">
+          <div class="gauge">
+            <svg viewBox="0 0 120 120">
+              <circle class="track" cx="60" cy="60" r="52" fill="none" stroke-width="11"/>
+              <circle class="bar" id="gbar" cx="60" cy="60" r="52" fill="none" stroke-width="11" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+            </svg>
+            <div class="num"><b id="gnum">-</b><span>MALICIOUSNESS</span></div>
+          </div>
+          <div class="verdict">
+            <div class="lbl">CLASSIFICATION</div>
+            <div class="val" id="v-val">-</div>
+            <div class="desc" id="v-desc">-</div>
+            <div class="chips">
+              <span class="chip info" id="c-th"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>threshold -</span>
+              <span class="chip ok" id="c-ms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>- ms</span>
+              <span class="chip info" id="c-size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>-</span>
+            </div>
+            <div class="rbar"><em id="riskbar" style="width:0;background:var(--ok)"></em></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div class="foot">SevenEngine V3 Flash · Cloud inference · NewEra Studio</div>
+</div>
+<script>
+const drop=document.getElementById('drop'),file=document.getElementById('file');
+let lastData=null;
+drop.addEventListener('click',()=>file.click());
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files.length)handle(ev.dataTransfer.files[0])});
+file.addEventListener('change',()=>{if(file.files.length)handle(file.files[0])});
+function setStep(n){['s1','s2','s3'].forEach((id,i)=>{const el=document.getElementById(id);el.classList.remove('on','done');if(i<n-1)el.classList.add('done');else if(i===n-1)el.classList.add('on')})}
+function colorFor(s){if(s===null||s===undefined)return'#d97706';if(s>=85)return'#dc2626';if(s>=60)return'#d97706';return'#16a34a'}
+async function handle(f){
+  setStep(2);
+  document.getElementById('upmeta').classList.remove('hidden');
+  document.getElementById('m-name').textContent=f.name;
+  document.getElementById('m-size').textContent=f.size.toLocaleString()+' bytes';
+  document.getElementById('m-md5').textContent='computing...';
+  md5sum(f).then(h=>document.getElementById('m-md5').textContent=h).catch(()=>document.getElementById('m-md5').textContent='n/a');
+  const fd=new FormData();fd.append('file',f);
+  document.getElementById('connTxt').textContent='Scanning';
+  try{
+    const r=await fetch('/api/scan',{method:'POST',body:fd});
+    const j=await r.json();
+    render(j);
+  }catch(e){
+    render({ok:false,error:String(e)});
+  }
+}
+function render(j){
+  setStep(3);
+  const res=document.getElementById('result');res.classList.remove('hidden');
+  const bar=document.getElementById('gbar'),num=document.getElementById('gnum'),
+        val=document.getElementById('v-val'),desc=document.getElementById('v-desc');
+  let score=j.score,status=j.status||'error';
+  if(!j.ok){status='error';score=null;desc.textContent=j.error||'Request failed'}
+  const CIRC=326.7;
+  if(score===null||score===undefined){
+    bar.style.stroke='#d97706';bar.style.strokeDashoffset=CIRC;
+    num.textContent='N/A';val.textContent='Error';val.className='val error';
+    if(j.ok)desc.textContent=j.label||'Not a PE file. Only Windows executables are supported.';
+  }else{
+    const c=colorFor(score);
+    bar.style.stroke=c;bar.style.strokeDashoffset=CIRC*(1-score/100);
+    num.textContent=score;
+    if(status==='malware'){val.textContent='Malware';val.className='val malware';
+      desc.textContent='Confidence above threshold. Static indicators strongly resemble known malware families.'}
+    else{val.textContent='Clean';val.className='val clean';
+      desc.textContent='Score below the detection threshold. No strong malicious pattern detected.'}
+  }
+  document.getElementById('c-th').innerHTML=svgSlice()+'threshold '+(j.threshold!==undefined?j.threshold:85);
+  document.getElementById('c-ms').innerHTML=svgClock()+(j.ms!==undefined?j.ms:'-')+' ms';
+  document.getElementById('c-size').innerHTML=svgCube()+(j.size!==undefined?(j.size/1024).toFixed(1)+' KB':'-');
+  const rb=document.getElementById('riskbar');
+  rb.style.width=(score===null||score===undefined?0:score)+'%';
+  rb.style.background=(score===null||score===undefined)?'#d97706':colorFor(score);
+}
+function svgSlice(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>'}
+function svgClock(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'}
+function svgCube(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>'}
+async function md5sum(f){
+  if(!crypto.subtle)throw 0;
+  const buf=await f.arrayBuffer();
+  const h=await crypto.subtle.digest('MD5',buf);
+  return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function ping(){
+  const c=document.getElementById('conn'),t=document.getElementById('connTxt');
+  try{const r=await fetch('/api/health');const j=await r.json();
+    if(j.ok){c.classList.remove('off');t.textContent='Online'}else{c.classList.add('off');t.textContent='Engine offline'}
+  }catch(e){c.classList.add('off');t.textContent='Disconnected'}
+}
+ping();
+</script>
+</body>
+</html>
