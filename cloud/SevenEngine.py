@@ -14,25 +14,31 @@ try:
 except ImportError:
     lightgbm = None
 
-# 维度布局（旧 1000 维原位不动，追加 204 维，无哈希桶噪声特征）:
+# 维度布局（940 维 = 旧 1086 - 哈希桶 224 + 语义特征 78）:
 #   0-255    字节直方图
 #   256-383  128 分块熵
 #   384-511  128 分块均值
 #   512-639  128 分块字节多样性
 #   640-735  节区 16x6
 #   736-759  全局头 24
-#   760-855  DLL 名哈希 96
-#   856-983  函数名哈希 128
-#   984-999  导入统计 16
-#   1000-1023 节区属性 24（逐节可执行位 + 聚合位）
-#   1024-1039 全局扩展 16（签名/.NET/TLS/EP位置/overlay熵/校验和等）
-#   1040-1047 Rich Header 统计 8（纯统计量，无编译器哈希桶）
-#   1048-1055 导出表 8
-#   1056-1067 资源 12
-#   1068-1077 敏感 API 词表 10（强信号低误报核心）
-#   1078-1085 字符串计数 8（URL/IP/注册表/命令解释器/自启动/加密勒索词/总量/均长）
-FEATURE_DIM = 1086
-MALWARE_THRESHOLD = 85
+#   760-775  导入统计 16
+#   776-799  节区属性 24（逐节可执行位 + 聚合位）
+#   800-815  全局扩展 16（签名/.NET/TLS/EP位置/overlay熵/校验和等）
+#   816-823  Rich Header 统计 8（纯统计量，无编译器哈希桶）
+#   824-831  导出表 8
+#   832-843  资源 12
+#   844-853  敏感 API 词表 10（强信号低误报核心）
+#   854-861  字符串计数 8（URL/IP/注册表/命令解释器/自启动/加密勒索词/总量/均长）
+#   862-877  版本信息 RT_VERSION 16（白证据核心）
+#   878-891  链接器版本/DOS stub/EP prologue 14
+#   892-899  节区名 MSVC Jaccard 8
+#   900-911  导入白名单覆盖 12
+#   912-919  字符串白名单 8
+#   920-927  PDB CodeView 8
+#   928-931  时间戳交叉验证 4
+#   932-939  文件结构合理性 8
+FEATURE_DIM = 940
+MALWARE_THRESHOLD = 99
 SCAN_WORKERS = 10
 BYTE_STAT_CAP = 2 * 1024 * 1024
 N_CHUNKS = 128
@@ -42,6 +48,34 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(ROOT_DIR, "Model", "SevenML.onnx")
 
 # 节区名分类集合
+_MSVC_SECTIONS = {".text", ".rdata", ".data", ".pdata", ".rsrc", ".reloc", ".tls", ".didat"}
+_DLL_WHITELIST = {
+    "kernel32", "user32", "advapi32", "ole32", "oleaut32", "shell32", "comctl32",
+    "gdi32", "ws2_32", "msvcrt", "vcruntime140", "ucrtbase", "ntdll", "comdlg32",
+    "winmm", "version", "shlwapi", "crypt32", "userenv", "wintrust", "secur32",
+    "gdiplus", "d3d9", "dxgi", "opengl32", "msvcp140", "concrt140", "wininet",
+    "setupapi", "dbghelp", "psapi", "imm32", "usp10", "dwmapi", "riched20",
+    "msimg32", "winhttp", "netapi32", "powrprof", "cabinet", "shcore", "xmllite",
+    "dwrite", "msvfw32", "uxtheme", "win32u", "kernelbase",
+}
+_CRT_INIT_FUNCS = {
+    "__scrt_common_main_seh", "_initterm", "_initterm_e",
+    "_configure_narrow_argv", "_pei386_runtime_relocator", "__report_gsfailure",
+}
+_PROLOGUES = [
+    b"\x55\x8b\xec", b"\x48\x89\x5c\x24", b"\x55\x48\x8b\xec", b"\x40\x53",
+    b"\x48\x83\xec", b"\x48\x89\xe5",
+]
+_COMPANY_WHITELIST = [
+    "microsoft", "google", "adobe", "apple", "tencent", "nvidia", "intel",
+    "vmware", "oracle", "mozilla", "valve", "discord", "7-zip", "igor pavlov",
+    "python software", "jetbrains", "the qt company", "bilibili", "netease",
+    "alibaba", "bytedance", "vim", "gcc", "gnu", "lwip", "openssl",
+]
+_STRING_WHITE_KEYS = [
+    b"copyright", b"all rights reserved", b"version", b"company",
+    b"microsoft", b".com", b"windows", b"license",
+]
 _COMMON_SECTIONS = {
     ".text", ".data", ".rdata", ".bss", ".idata", ".edata", ".tls", ".rsrc",
     ".reloc", ".pdata", ".debug", ".crt", ".gfx", ".didata", ".xdata", ".edata",
@@ -196,6 +230,15 @@ def _parse_pe(data):
     info["tstamp"] = tstamp
     info["ep"] = ep
     info["checksum"] = checksum
+    info["sizecode"] = sizecode
+    info["sizeinit"] = sizeinit
+    info["sizeimage"] = sizeimage
+    info["sizeheaders"] = sizeheaders
+    info["linker"] = struct.unpack_from("<BB", data, off + 2) if off + 4 <= len(data) else (0, 0)
+    info["filealign"] = struct.unpack_from("<I", data, off + 36)[0] if off + 40 <= len(data) else 0
+    info["secalign"] = struct.unpack_from("<I", data, off + 32)[0] if off + 36 <= len(data) else 0
+    dos = data[0x40:min(e_lfanew, 0x40 + 256)] if e_lfanew > 0x40 else b""
+    info["dos_msg"] = b"This program cannot be run in DOS mode" in dos
     if pe32plus:
         info["imagebase"] = struct.unpack_from("<Q", data, off + 24)[0] if off + 32 <= len(data) else 0
     else:
@@ -205,6 +248,7 @@ def _parse_pe(data):
     overlay = max(0, len(data) - max_end)
 
     ep_off = _rva_to_off(ep, sections) if ep else None
+    info["ep_off"] = ep_off
     ep_bytes = data[ep_off:ep_off + 256] if ep_off is not None else b""
     if len(ep_bytes) > 1:
         n = len(ep_bytes)
@@ -568,8 +612,229 @@ def _api_feats(info):
     return feats
 
 
+def _version_feats(data, info):
+    """RT_VERSION 解析 16 维：正常软件几乎必有，恶意常缺。"""
+    feats = np.zeros(16, dtype=np.float64)
+    dd = info.get("dd") or []
+    if not dd or len(dd) <= 2:
+        return feats
+    rva, size = dd[2]
+    if not rva or not size:
+        return feats
+    base = _rva_to_off(rva, info["sections"])
+    if base is None:
+        return feats
+    leaves = []
+    _walk_res(data, base, base, info["sections"], 1, -1, leaves)
+    blobs = []
+    for tid, drva, dsize in leaves:
+        if tid == 16:
+            off = _rva_to_off(drva, info["sections"])
+            if off is not None:
+                blobs.append(data[off:off + min(dsize, 262144)])
+    if not blobs:
+        return feats
+    feats[0] = 1.0
+    blob = b"\x00".join(blobs[:8])[:1048576]
+    text = blob.decode("utf-16-le", "ignore").lower()
+    feats[1] = 1.0 if "companyname" in text else 0.0
+    feats[2] = 1.0 if any(w in text for w in _COMPANY_WHITELIST) else 0.0
+    feats[3] = 1.0 if "productname" in text else 0.0
+    feats[4] = 1.0 if "fileversion" in text else 0.0
+    feats[5] = 1.0 if re.search(r"fileversion[\x00-\x1f ]+(\d+(?:\.\d+){1,3})", text) else 0.0
+    feats[6] = 1.0 if "legalcopyright" in text else 0.0
+    feats[7] = 1.0 if "originalfilename" in text else 0.0
+    feats[8] = 1.0 if "filedescription" in text else 0.0
+    feats[9] = 1.0 if "productversion" in text else 0.0
+    feats[10] = 1.0 if "varfileinfo" in text else 0.0
+    feats[11] = 1.0 if "internalname" in text else 0.0
+    feats[12] = min(_entropy(blob[:262144]), 8.0) / 8.0
+    feats[13] = len(blobs) / 8.0
+    feats[14] = min(len(blob), 262144) / 262144.0
+    feats[15] = 1.0 if "stringfileinfo" in text else 0.0
+    return feats
+
+
+def _linker_dos_ep_feats(data, info):
+    """链接器版本 / DOS stub / EP prologue 14 维。"""
+    feats = np.zeros(14, dtype=np.float64)
+    maj, mn = info.get("linker", (0, 0))
+    feats[0] = maj / 20.0
+    feats[1] = mn / 20.0
+    feats[2] = 1.0 if info.get("dos_msg") else 0.0
+    e_lfanew = info.get("e_lfanew", 0)
+    stub = data[0x40:min(e_lfanew, 0x40 + 128)] if e_lfanew > 0x40 else b""
+    std_head = b"\x0e\x1f\xba\x0e\x00\xb4\x09\xcd\x21\xb8\x01\x4c\xcd\x21"
+    feats[3] = 1.0 if (len(stub) >= 64 and stub[:14] == std_head) else 0.0
+    ep_off = info.get("ep_off")
+    epb = data[ep_off:ep_off + 16] if ep_off is not None else b""
+    if epb:
+        for i, pat in enumerate(_PROLOGUES):
+            if epb.startswith(pat):
+                feats[4 + i] = 1.0
+        ep = info.get("ep", 0)
+        ep_sec = next((s for s in info["sections"]
+                       if s["vaddr"] <= ep < s["vaddr"] + max(s["vsize"], 1)), None)
+        feats[10] = 1.0 if (ep_sec is not None and ep_sec["name"].lower().lstrip(".") == "text") else 0.0
+        feats[11] = 1.0 if len(set(epb)) <= 3 else 0.0
+        feats[12] = 1.0 if any(feats[4 + i] for i in range(len(_PROLOGUES))) else 0.0
+        feats[13] = min(_entropy(data[ep_off:ep_off + 64]), 8.0) / 8.0
+    return feats
+
+
+def _sec_jaccard_feats(info):
+    """节区名 MSVC 白名单 Jaccard 8 维。"""
+    feats = np.zeros(8, dtype=np.float64)
+    names = {s["name"].lower() for s in info["sections"]}
+    if not names:
+        return feats
+    feats[0] = len(names & _MSVC_SECTIONS) / max(len(names | _MSVC_SECTIONS), 1)
+    feats[1] = 1.0 if ".pdata" in names else 0.0
+    feats[2] = 1.0 if 3 <= len(info["sections"]) <= 8 else 0.0
+    blob = "".join(sorted(names)).encode("latin-1", "ignore")
+    feats[3] = min(_entropy(blob[:4096]), 5.0) / 5.0
+    ordered = [s["name"].lower().lstrip(".") for s in info["sections"]]
+    feats[4] = 1.0 if (ordered and ordered[0] == "text") else 0.0
+    feats[5] = 1.0 if all(c in "abcdefghijklmnopqrstuvwxyz0123456789_.$-" for nm in names for c in nm) else 0.0
+    feats[6] = 1.0 if ".rdata" in names else 0.0
+    feats[7] = 1.0 if (".reloc" in names or ".rsrc" in names) else 0.0
+    return feats
+
+
+def _import_cov_feats(info):
+    """导入白名单覆盖 12 维：导入表像不像正常软件。"""
+    feats = np.zeros(12, dtype=np.float64)
+    dlls = []
+    for d in info["dlls"]:
+        dl = d.lower()
+        if dl.endswith(".dll"):
+            dl = dl[:-4]
+        dlls.append(dl)
+    funcs = info["funcs"]
+    nd = len(dlls)
+    nf = len(funcs)
+    if not nd:
+        return feats
+    hits = sum(1 for d in dlls if d in _DLL_WHITELIST or d.startswith("api-ms-win"))
+    feats[0] = hits / nd
+    feats[1] = 1.0 if "kernel32" in dlls else 0.0
+    feats[2] = 1.0 if "user32" in dlls else 0.0
+    feats[3] = 1.0 if "advapi32" in dlls else 0.0
+    feats[4] = 1.0 if any(f.lower() in _CRT_INIT_FUNCS for f in funcs) else 0.0
+    feats[5] = 1.0 if 20 <= nf <= 2000 else 0.0
+    feats[6] = (sum(len(f) for f in funcs) / max(nf, 1)) / 32.0
+    blob = "".join(funcs[:8192]).encode("latin-1", "ignore")
+    feats[7] = min(_entropy(blob[:65536]), 8.0) / 8.0
+    feats[8] = (sum(len(d) for d in dlls) / nd) / 32.0
+    feats[9] = sum(1 for d in dlls if d.startswith("api-ms-win")) / nd
+    feats[10] = 1.0 if any(d in ("msvcrt", "vcruntime140", "ucrtbase", "msvcp140") for d in dlls) else 0.0
+    feats[11] = 1.0 if 2 <= nd <= 40 else 0.0
+    return feats
+
+
+def _string_white_feats(data):
+    """字符串白名单 8 维：正常软件高频关键词。"""
+    feats = np.zeros(8, dtype=np.float64)
+    region = data[:BYTE_STAT_CAP]
+    strs = _STR_RE.findall(region)
+    total = len(strs)
+    if not total:
+        return feats
+    sample = strs if total <= 20000 else strs[::max(1, total // 20000)][:20000]
+    for s in sample:
+        low = s.lower()
+        for i, k in enumerate(_STRING_WHITE_KEYS):
+            if k in low:
+                feats[i] += 1.0
+    for i in range(8):
+        feats[i] = min(feats[i], 100) / 100.0
+    return feats
+
+
+def _pdb_feats(data, info):
+    """Debug 目录 / CodeView PDB 8 维。"""
+    feats = np.zeros(8, dtype=np.float64)
+    dd = info.get("dd") or []
+    if not dd or len(dd) <= 6:
+        return feats
+    rva, size = dd[6]
+    if not rva or not size:
+        return feats
+    off = _rva_to_off(rva, info["sections"])
+    if off is None:
+        return feats
+    feats[0] = 1.0
+    types = set()
+    rsds = False
+    pdb_path = b""
+    repro = False
+    n = min(size // 28, 64)
+    for i in range(n):
+        eo = off + i * 28
+        if eo + 28 > len(data):
+            break
+        _c, _tds, _maj, _min, typ, _sz, _arva, prva = struct.unpack_from("<IIIIIIII", data, eo)
+        types.add(typ)
+        if typ == 2:
+            rd = _rva_to_off(prva, info["sections"])
+            if rd is not None and rd + 24 <= len(data) and data[rd:rd + 4] == b"RSDS":
+                rsds = True
+                pend = data.find(b"\x00", rd + 24, rd + 24 + 512)
+                pdb_path = data[rd + 24:pend if pend > 0 else rd + 24 + 512]
+        elif typ == 16:
+            repro = True
+    feats[1] = 1.0 if 2 in types else 0.0
+    feats[2] = 1.0 if rsds else 0.0
+    feats[3] = 1.0 if b"\\" in pdb_path else 0.0
+    feats[4] = min(_entropy(pdb_path[:512]), 8.0) / 8.0 if pdb_path else 0.0
+    feats[5] = 1.0 if repro else 0.0
+    feats[6] = 1.0 if pdb_path.lower().endswith(b".pdb") else 0.0
+    feats[7] = len(types) / 8.0
+    return feats
+
+
+def _ts_cross_feats(data, info):
+    """时间戳交叉验证 4 维。"""
+    feats = np.zeros(4, dtype=np.float64)
+    ts = int(info.get("tstamp", 0))
+    year = 1970 + ts // 31536000
+    feats[0] = 1.0 if 1998 <= year <= 2028 else 0.0
+    dd = info.get("dd") or []
+    if dd and len(dd) > 6 and dd[6][0]:
+        off = _rva_to_off(dd[6][0], info["sections"])
+        if off is not None and off + 28 <= len(data):
+            tsdbg = struct.unpack_from("<I", data, off + 4)[0]
+            if tsdbg:
+                feats[1] = 1.0 if abs(tsdbg - ts) <= 7 * 86400 else 0.0
+                feats[2] = 1.0 if tsdbg == ts else 0.0
+    feats[3] = 1.0 if (0 < ts < 2147483647 and year >= 2015) else 0.0
+    return feats
+
+
+def _struct_sane_feats(data, info):
+    """文件结构合理性 8 维。"""
+    feats = np.zeros(8, dtype=np.float64)
+    fa = info.get("filealign", 0)
+    sa = info.get("secalign", 0)
+    feats[0] = 1.0 if fa in (512, 1024, 2048, 4096, 8192, 16384, 32768, 65536) else 0.0
+    feats[1] = 1.0 if sa >= fa else 0.0
+    feats[2] = 1.0 if (sa in (4096, 8192, 16384, 65536) or sa == fa) else 0.0
+    sections = info["sections"]
+    sumv = sum(s["vsize"] for s in sections)
+    sizeimage = info.get("sizeimage", 0)
+    feats[3] = 1.0 if (sumv and 1.0 <= sizeimage / max(sumv, 1) <= 2.5) else 0.0
+    n = max(len(data), 1)
+    feats[4] = min(info.get("sizecode", 0) / n, 1.0)
+    feats[5] = min(info.get("sizeinit", 0) / n, 1.0)
+    dd = info.get("dd") or []
+    feats[6] = min((dd[2][1] if len(dd) > 2 else 0) / n, 1.0)
+    feats[7] = 1.0 if (sizeimage and info.get("sizeheaders", 0) / sizeimage < 0.1) else 0.0
+    return feats
+
+
 def _extra_feats(data, info):
-    """追加的 86 维：节区属性 24 + 全局扩展 16 + Rich 统计 8 + 导出 8 + 资源 12 + API 10 + 字符串 8"""
+    """追加的 164 维：节区属性 24 + 全局扩展 16 + Rich 统计 8 + 导出 8 + 资源 12 + API 10 + 字符串 8
+    + 版本信息 16 + 链接器/DOS/EP 14 + 节区 Jaccard 8 + 导入覆盖 12 + 字符串白名单 8 + PDB 8 + 时间戳交叉 4 + 结构合理性 8"""
     sections = info["sections"]
     ep = info.get("ep", 0)
 
@@ -654,7 +919,18 @@ def _extra_feats(data, info):
     # ---- G. 字符串计数 8 ----
     strs = _string_feats(data)
 
-    return np.concatenate([sec_char, glob, rich, exp, res, apis, strs])
+    # ---- H. 语义白证据 78 ----
+    ver = _version_feats(data, info)
+    lde = _linker_dos_ep_feats(data, info)
+    jac = _sec_jaccard_feats(info)
+    imp = _import_cov_feats(info)
+    swh = _string_white_feats(data)
+    pdb = _pdb_feats(data, info)
+    tsc = _ts_cross_feats(data, info)
+    stc = _struct_sane_feats(data, info)
+
+    return np.concatenate([sec_char, glob, rich, exp, res, apis, strs,
+                           ver, lde, jac, imp, swh, pdb, tsc, stc])
 
 
 def extract_features(data):
@@ -682,18 +958,6 @@ def extract_features(data):
     else:
         glob = np.asarray(info["global"], dtype=np.float64)
 
-    dll_feats = np.zeros(96, dtype=np.float64)
-    for d in info["dlls"]:
-        dll_feats[zlib.crc32(d.lower().encode("latin-1", "ignore")) % 96] += 1.0
-    nd = max(len(info["dlls"]), 1)
-    dll_feats /= nd
-
-    func_feats = np.zeros(128, dtype=np.float64)
-    for f in info["funcs"]:
-        func_feats[zlib.crc32(f.encode("latin-1", "ignore")) % 128] += 1.0
-    nf = max(len(info["funcs"]), 1)
-    func_feats /= nf
-
     per_dll = []
     if info["dlls"]:
         seen = {}
@@ -701,7 +965,8 @@ def extract_features(data):
             seen[d] = seen.get(d, 0) + 1
         per_dll = list(seen.values())
     counts = np.asarray(per_dll, dtype=np.float64)
-    ordinal_ratio = 0.0
+    nd = max(len(info["dlls"]), 1)
+    nf = max(len(info["funcs"]), 1)
     stats = np.zeros(16, dtype=np.float64)
     stats[0] = len(info["dlls"]) / 64.0
     stats[1] = len(info["funcs"]) / 8192.0
@@ -721,7 +986,7 @@ def extract_features(data):
     stats[15] = 1.0 if not info["dlls"] else 0.0
 
     extra = _extra_feats(data, info)
-    feats = np.concatenate([hist, ents, means, divs, sec_feats, glob, dll_feats, func_feats, stats, extra])
+    feats = np.concatenate([hist, ents, means, divs, sec_feats, glob, stats, extra])
     feats = np.nan_to_num(feats, nan=0.0, posinf=0.0, neginf=0.0)
     return feats[:FEATURE_DIM].astype(np.float32)
 
