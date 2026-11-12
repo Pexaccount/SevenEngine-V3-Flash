@@ -26,7 +26,6 @@ MODEL_LOCK = threading.Lock()
 START_TIME = time.time()
 MAX_FILE_BYTES = 300 * 1024 * 1024
 
-
 HISTORY = []
 HISTORY_LOCK = threading.Lock()
 HISTORY_MAX = 500
@@ -96,25 +95,19 @@ def static_files(filename):
     return send_from_directory(os.path.join(BASE_DIR, "static"), filename)
 
 
-def _classify(data):
+def _classify(data, threshold=None):
     t0 = time.time()
     model = get_model()
     if not is_pe(data):
         return {"status": "error", "score": None, "label": "Not a PE file", "ms": 0}
-    status, score = scan_bytes(data, model)
+    status, score = scan_bytes(data, model, threshold=threshold)
     ms = int((time.time() - t0) * 1000)
-    if status == "malware":
-        label = "Malware"
-    elif status == "clean":
-        label = "Clean"
-    else:
-        label = "Error"
+    label = "Malware" if status == "malware" else "Clean" if status == "clean" else "Error"
     return {"status": status, "score": score, "label": label, "ms": ms}
 
 
 @app.route("/api/health")
 def api_health():
-    ok = False
     try:
         get_model()
         ok = True
@@ -140,22 +133,29 @@ def api_scan():
     if len(data) > MAX_FILE_BYTES:
         return jsonify({"ok": False, "error": "file too large (>300MB)"}), 413
     name = secure_filename(f.filename) or "upload.bin"
+    raw_th = request.form.get("threshold", "").strip()
+    try:
+        custom_threshold = max(1, min(100, int(float(raw_th)))) if raw_th else None
+    except (ValueError, TypeError):
+        return jsonify({"ok": False, "error": "invalid threshold value"}), 400
     sha = hashlib.sha256(data).hexdigest()
     md5 = hashlib.md5(data).hexdigest()
     with HASH_CACHE_LOCK:
-        cached = HASH_CACHE.get(sha)
+        cached = HASH_CACHE.get(sha) if custom_threshold is None else None
     if cached is not None:
         r = dict(cached)
         r["cached"] = True
     else:
-        r = _classify(data)
+        r = _classify(data, threshold=custom_threshold)
         r["sha256"] = sha
         r["md5"] = md5
-        with HASH_CACHE_LOCK:
-            if len(HASH_CACHE) >= HASH_CACHE_MAX:
-                HASH_CACHE.pop(next(iter(HASH_CACHE)))
-            HASH_CACHE[sha] = dict(r)
-    r.update({"ok": True, "name": name, "size": len(data)})
+        if custom_threshold is None:
+            with HASH_CACHE_LOCK:
+                if len(HASH_CACHE) >= HASH_CACHE_MAX:
+                    HASH_CACHE.pop(next(iter(HASH_CACHE)))
+                HASH_CACHE[sha] = dict(r)
+    effective_threshold = custom_threshold if custom_threshold is not None else MALWARE_THRESHOLD
+    r.update({"ok": True, "name": name, "size": len(data), "threshold": effective_threshold})
     if r.get("status") in ("malware", "clean"):
         _record(name, r, len(data))
     return jsonify(r)
@@ -192,36 +192,31 @@ def api_history():
 @app.route("/api/scan/hash", methods=["POST"])
 def api_scan_hash():
     j = request.get_json(silent=True) or {}
-    h = (j.get("sha256") or j.get("md5") or "").strip().lower()
-    if not h or len(h) not in (32, 64) or not all(c in "0123456789abcdef" for c in h):
-        return jsonify({"ok": False, "error": "provide sha256 or md5 hex"}), 400
+    value = (j.get("sha256") or j.get("md5") or "").strip().lower()
+    if len(value) not in (32, 64) or any(c not in "0123456789abcdef" for c in value):
+        return jsonify({"ok": False, "error": "provide a valid MD5 or SHA-256"}), 400
     with HASH_CACHE_LOCK:
-        for r in HASH_CACHE.values():
-            if r.get("sha256") == h or r.get("md5") == h:
-                out = dict(r)
-                out.update({"ok": True, "lookup": "cache-hit"})
-                return jsonify(out)
-    return jsonify({"ok": True, "lookup": "unknown", "found": False,
-                    "hint": "hash not seen on this node; upload the sample to /api/scan"}), 200
+        item = next((v for v in HASH_CACHE.values() if v.get("sha256") == value or v.get("md5") == value), None)
+    if item is None:
+        return jsonify({"ok": True, "known": False, "hash": value})
+    return jsonify({"ok": True, "known": True, **item})
 
 
 @app.route("/api/scan/base64", methods=["POST"])
 def api_scan_base64():
     j = request.get_json(silent=True) or {}
-    b64 = j.get("data") or ""
-    name = secure_filename(j.get("name") or "sample.bin")
+    name = secure_filename(j.get("name") or "upload.bin")
     try:
-        raw = base64.b64decode(b64, validate=False)
+        data = base64.b64decode(j.get("data") or "", validate=True)
     except Exception:
-        return jsonify({"ok": False, "error": "invalid base64"}), 400
-    if not raw:
-        return jsonify({"ok": False, "error": "empty payload"}), 400
-    if len(raw) > MAX_FILE_BYTES:
-        return jsonify({"ok": False, "error": "file too large (>16MB)"}), 413
-    r = _classify(raw)
-    r.update({"ok": True, "name": name, "size": len(raw)})
-    if r.get("status") in ("malware", "clean"):
-        _record(name, r, len(raw))
+        return jsonify({"ok": False, "error": "invalid base64 data"}), 400
+    if len(data) > MAX_FILE_BYTES:
+        return jsonify({"ok": False, "error": "file too large (>300MB)"}), 413
+    r = _classify(data)
+    sha = hashlib.sha256(data).hexdigest()
+    r.update({"ok": True, "name": name, "size": len(data), "sha256": sha, "threshold": MALWARE_THRESHOLD})
+    if r["status"] in ("malware", "clean"):
+        _record(name, r, len(data))
     return jsonify(r)
 
 

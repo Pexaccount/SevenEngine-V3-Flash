@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>About Engine · SevenEngine</title>
+<title>引擎信息 · SevenEngine</title>
 <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
 <style>
 :root{
@@ -14,7 +14,11 @@
   --mono:Consolas,"Courier New",monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;display:flex;min-height:100vh}
+html{scroll-behavior:smooth}
+body{animation:page-in .45s cubic-bezier(.2,.75,.25,1) both}
+@keyframes page-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+body{background:var(--bg);color:var(--text);font-family:"Noto Sans SC","Microsoft YaHei","Segoe UI",sans-serif;font-size:14px;display:flex;min-height:100vh}
 aside{width:220px;flex:none;background:var(--side);display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh}
 .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
 .brand img{width:34px;height:34px}
@@ -78,95 +82,95 @@ td.mono{font-family:var(--mono);font-size:11.5px}
     <div><b>SevenEngine</b><small>V3 Flash · Cloud</small></div>
   </div>
   <nav>
-    <a href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a>
-    <a href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Cloud Scan</a>
-    <a href="/docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>API Docs</a>
-    <a href="/about" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About Engine</a>
+    <a href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>总览</a>
+    <a href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>云扫描</a>
+    <a href="/docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>接口文档</a>
+    <a href="/about" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>引擎信息</a>
   </nav>
-  <div class="sidefoot">NewEra Studio<br>SevenEngine V3 Flash<br>Cloud inference endpoint</div>
+  <div class="sidefoot">NewEra Studio<br>官方群：777353898<br>SevenEngine V3 Flash</div>
 </aside>
 <div class="wrap">
   <topbar>
-    <h1>About Engine</h1>
-    <div class="conn" id="conn"><i></i><span id="connTxt">Checking</span></div>
+    <h1>引擎信息</h1>
+    <div class="conn" id="conn"><i></i><span id="connTxt">检测中</span></div>
   </topbar>
   <main>
     <div class="hero">
       <img class="lg" src="/static/logo.svg" alt="logo">
       <div>
         <h2>SevenEngine<span class="ver">V3 Flash</span></h2>
-        <p>Machine-learning static detection for Windows PE binaries</p>
+        <p>静态特征推理：<strong>940 维</strong>，默认阈值 <strong>99</strong>。</p>
       </div>
     </div>
 
     <div class="panel">
-      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Engine Identity</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>引擎标识</h2>
       <div class="body">
         <div class="kv">
-          <i>Product</i><b>SevenEngine Cloud Scan</b>
-          <i>Version</i><b>SevenEngine V3 Flash <span class="badge info">cloud build</span></b>
-          <i>Model file</i><b class="mono">Model\SevenML.onnx</b>
-          <i>Model format</i><b>LightGBM booster <span class="badge ok">loaded</span></b>
-          <i>Feature vector</i><b class="mono">1086 float32</b>
-          <i>Decision threshold</i><b class="mono">score &gt;= 85</b>
-          <i>Training corpus</i><b>122143 samples (84415 clean / 38663 malware)</b>
-          <i>Detection rate</i><b>88.43% at 0.15% false-positive rate</b>
-          <i>Scan latency</i><b>20 - 80 ms per sample</b>
+          <i>产品</i><b>SevenEngine 云扫描</b>
+          <i>版本</i><b>SevenEngine V3 Flash <span class="badge info">云端构建</span></b>
+          <i>模型文件</i><b class="mono">Model\SevenML.onnx</b>
+          <i>模型格式</i><b>LightGBM 提升树 <span class="badge ok">已加载</span></b>
+          <i>特征维度</i><b class="mono">940 float32</b>
+          <i>判定阈值</i><b class="mono">score &gt;= 99（可自定义）</b>
+          <i>训练样本</i><b>160,000 份（Clean 130,000 / Malware 30,000）</b>
+          <i>检测能力</i><b>误报 0.15% 下检出率 88.43%</b>
+          <i>扫描耗时</i><b>单样本 20 - 80 ms</b>
         </div>
       </div>
     </div>
 
     <div class="panel">
-      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>Feature Extraction Pipeline</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>特征提取流程</h2>
       <div class="section">
-        <p>Every uploaded sample is parsed as a PE image. The engine never trusts the file extension; it reads the DOS header magic <span style="font-family:var(--mono)">MZ</span> and walks the full structure.</p>
+        <p>所有样本都会按 PE 结构解析。引擎不信任扩展名，而是读取 DOS 头魔数 <span style="font-family:var(--mono)">MZ</span> 并遍历完整结构。</p>
         <div class="flow">
-          <div class="fstep"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>Parse</b><span>DOS header, PE header, optional header, 16 section table entries.</span></div>
-          <div class="fstep"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Statistics</b><span>Byte histogram, 128-chunk entropy / mean / diversity map.</span></div>
-          <div class="fstep"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Structures</b><span>Section attributes, data directories, Rich header, export / resource tables.</span></div>
-          <div class="fstep"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Imports</b><span>Top-10 sensitive API hits, DLL / function name histograms, string signals.</span></div>
-          <div class="fstep"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Score</b><span>LightGBM booster outputs 0-100 maliciousness, threshold 85.</span></div>
+          <div class="fstep"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>解析</b><span>DOS 头、PE 头、可选头与 16 项节区表。</span></div>
+          <div class="fstep"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>统计</b><span>字节直方图、128 分块熵 / 均值 / 多样性。</span></div>
+          <div class="fstep"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>结构</b><span>节区属性、数据目录、Rich 头、导出 / 资源表。</span></div>
+          <div class="fstep"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>导入</b><span>敏感 API 命中、DLL / 函数名分布、字符串信号。</span></div>
+          <div class="fstep"><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>评分</b><span>LightGBM 输出 0-100 恶意分，默认阈值 99。</span></div>
         </div>
       </div>
     </div>
 
     <div class="grid g2">
       <div class="panel">
-        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>Verdict Mapping</h2>
+        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>判定映射</h2>
         <div class="body" style="padding:0">
           <table>
-            <thead><tr><th>Score</th><th>Status</th><th>Meaning</th></tr></thead>
+            <thead><tr><th>分数</th><th>状态</th><th>说明</th></tr></thead>
             <tbody>
-              <tr><td class="mono">85 - 100</td><td><span class="badge" style="background:var(--bad-soft);color:var(--bad)">Malware</span></td><td>Quarantine recommended</td></tr>
-              <tr><td class="mono">60 - 84</td><td><span class="badge" style="background:var(--warn-soft);color:var(--warn)">Suspicious</span></td><td>Below threshold, review manually</td></tr>
-              <tr><td class="mono">0 - 59</td><td><span class="badge ok">Clean</span></td><td>No strong malicious pattern</td></tr>
-              <tr><td class="mono">N/A</td><td><span class="badge" style="background:#eef1f6;color:var(--muted)">Error</span></td><td>Not a PE file or unreadable</td></tr>
+              <tr><td class="mono">99 - 100</td><td><span class="badge" style="background:var(--bad-soft);color:var(--bad)">Malware</span></td><td>达到默认阈值，建议隔离并复核</td></tr>
+              <tr><td class="mono">1 - 98</td><td><span class="badge" style="background:var(--warn-soft);color:var(--warn)">Review</span></td><td>低于默认阈值，可使用自定义阈值调整判定</td></tr>
+              <tr><td class="mono">0</td><td><span class="badge ok">Clean</span></td><td>未发现强恶意特征</td></tr>
+              <tr><td class="mono">N/A</td><td><span class="badge" style="background:#eef1f6;color:var(--muted)">Error</span></td><td>非 PE 文件或无法解析</td></tr>
             </tbody>
           </table>
         </div>
       </div>
       <div class="panel">
-        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Cloud Endpoint Limits</h2>
+        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>云端限制</h2>
         <div class="body">
           <div class="kv">
-            <i>Single file cap</i><b>300 MB</b>
-            <i>Request body cap</i><b>300 MB</b>
-            <i>Feature extraction</i><b>&lt;= 2 MB of raw bytes per sample</b>
-            <i>History retention</i><b>500 records, in-memory per worker</b>
-            <i>Hash cache</i><b>10 000 entries, in-memory per worker</b>
+            <i>单文件上限</i><b>300 MB</b>
+            <i>请求体上限</i><b>300 MB</b>
+            <i>特征提取采样</i><b>每样本最多 2 MB 原始字节</b>
+            <i>历史保留</i><b>500 条，进程内内存</b>
+            <i>哈希缓存</i><b>10,000 条，进程内内存</b>
           </div>
         </div>
       </div>
     </div>
   </main>
-  <div class="foot">SevenEngine V3 Flash · Cloud inference · NewEra Studio</div>
+  <div class="foot">SevenEngine V3 Flash · 云扫描 · NewEra Studio · 官方群 777353898</div>
 </div>
 <script>
 async function ping(){
   const c=document.getElementById('conn'),t=document.getElementById('connTxt');
   try{const r=await fetch('/api/health');const j=await r.json();
-    if(j.ok){c.classList.remove('off');t.textContent='Online'}else{c.classList.add('off');t.textContent='Engine offline'}
-  }catch(e){c.classList.add('off');t.textContent='Disconnected'}
+    if(j.ok){c.classList.remove('off');t.textContent='在线'}else{c.classList.add('off');t.textContent='引擎离线'}
+  }catch(e){c.classList.add('off');t.textContent='连接失败'}
 }
 ping();
 </script>

@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SevenEngine Cloud Scan</title>
+<title>SevenEngine V3 Flash · 云扫描</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
 <style>
 :root{
@@ -14,7 +17,11 @@
   --mono:Consolas,"Courier New",monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;display:flex;min-height:100vh}
+html{scroll-behavior:smooth}
+body{animation:page-in .45s cubic-bezier(.2,.75,.25,1) both}
+@keyframes page-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+body{background:var(--bg);color:var(--text);font-family:"Noto Sans SC","Microsoft YaHei","Segoe UI",sans-serif;font-size:14px;display:flex;min-height:100vh}
 aside{width:220px;flex:none;background:var(--side);display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh}
 .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
 .brand img{width:34px;height:34px}
@@ -79,41 +86,41 @@ main{flex:1;padding:24px 28px;max-width:1180px;width:100%}
     <div><b>SevenEngine</b><small>V3 Flash · Cloud</small></div>
   </div>
   <nav>
-    <a href="/" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a>
-    <a href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Cloud Scan</a>
-    <a href="/docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>API Docs</a>
-    <a href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About Engine</a>
+    <a href="/" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>总览</a>
+    <a href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>云扫描</a>
+    <a href="/docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>接口文档</a>
+    <a href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>引擎信息</a>
   </nav>
-  <div class="sidefoot">NewEra Studio<br>SevenEngine V3 Flash<br>Cloud inference endpoint</div>
+  <div class="sidefoot">NewEra Studio<br>官方群：777353898<br>SevenEngine V3 Flash</div>
 </aside>
 <div class="wrap">
   <topbar>
-    <h1>Overview</h1>
-    <div class="conn" id="conn"><i></i><span id="connTxt">Checking</span></div>
+    <h1>云扫描概览</h1>
+    <div class="conn" id="conn"><i></i><span id="connTxt">检测中</span></div>
   </topbar>
   <main>
     <div class="hero">
-      <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>SEVENENGINE CLOUD SCAN</span>
-      <h2>Static PE detection, served from the cloud</h2>
-      <p>Upload any Windows executable and the SevenEngine inference core classifies it in milliseconds. 1086-dimension feature extraction, LightGBM scoring, no signature database needed.</p>
+      <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>SEVENENGINE 云扫描</span>
+      <h2>SevenEngine V3 Flash</h2>
+      <p>云端 PE 静态检测。当前模型包含 940 维特征，默认判定阈值为 99。</p>
     </div>
     <div class="grid g4">
-      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>ENGINE STATUS</small><b class="good" id="st-eng">Loading</b></div></div>
-      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>FEATURE DIMS</small><b id="st-dim">-</b></div></div>
-      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>DETECT THRESHOLD</small><b id="st-th">-</b></div></div>
-      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>UPTIME</small><b id="st-up">-</b></div></div>
+      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>引擎状态</small><b class="good" id="st-eng">加载中</b></div></div>
+      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>特征维度</small><b id="st-dim">-</b></div></div>
+      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>判定阈值</small><b id="st-th">-</b></div></div>
+      <div class="card"><div class="body stat"><small><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>运行时长</small><b id="st-up">-</b></div></div>
     </div>
     <div class="grid g3">
-      <div class="card"><div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><h3>Raw bytes, no extension tricks</h3><p>Detection keys off the MZ header and PE structure. Renamed, packed or extension-spoofed binaries are still caught.</p></div></div>
-      <div class="card"><div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></div><h3>Feature based, not signatures</h3><p>1086 features per sample: byte histogram, entropy map, section layout, import table, Rich header, resources, strings.</p></div></div>
-      <div class="card"><div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><h3>Fast inference</h3><p>A single LightGBM booster scores a sample in tens of milliseconds. Uploads up to 300 MB are accepted in one request.</p></div></div>
+      <div class="card"><div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><h3>结构化特征</h3><p>940 维结构与语义特征，结合 LightGBM 评分模型，不依赖单一特征判断。</p></div></div>
+      <div class="card"><div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></div><h3>特征驱动，非特征库</h3><p>940 维特征结合 LightGBM 与 PE 语义元数据，不依赖哈希黑名单。</p></div></div>
+      <div class="card"><div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><h3>快速推理</h3><p>LightGBM 单样本推理毫秒级。单次请求支持最大 300 MB 文件。</p></div></div>
     </div>
     <div class="cta">
-      <a class="btn pri" href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>Start a scan</a>
-      <a class="btn ghost" href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Engine details</a>
+      <a class="btn pri" href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>开始扫描</a>
+      <a class="btn ghost" href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>引擎详情</a>
     </div>
   </main>
-  <div class="foot">SevenEngine V3 Flash · Cloud inference · NewEra Studio</div>
+  <div class="foot">SevenEngine V3 Flash · 云扫描 · NewEra Studio · 官方群 777353898</div>
 </div>
 <script>
 async function ping(){
@@ -121,17 +128,17 @@ async function ping(){
   try{
     const r=await fetch('/api/health');const j=await r.json();
     if(j.ok){
-      c.classList.remove('off');t.textContent='Online';
-      document.getElementById('st-eng').textContent='Ready';
+      c.classList.remove('off');t.textContent='在线';
+      document.getElementById('st-eng').textContent='就绪';
       document.getElementById('st-dim').textContent=j.feature_dim;
       document.getElementById('st-th').textContent='>= '+j.threshold;
       document.getElementById('st-up').textContent=fmtUp(j.uptime_sec);
     }else{
-      c.classList.add('off');t.textContent='Engine offline';
-      document.getElementById('st-eng').textContent='Down';
+      c.classList.add('off');t.textContent='引擎离线';
+      document.getElementById('st-eng').textContent='离线';
     }
   }catch(e){
-    c.classList.add('off');t.textContent='Disconnected';
+    c.classList.add('off');t.textContent='连接失败';
     document.getElementById('st-eng').textContent='-';
   }
 }

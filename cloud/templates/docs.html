@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>API Reference · SevenEngine</title>
-<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<title>接口文档 · SevenEngine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#f5f7fa; --side:#0f172a; --side-txt:#94a3b8; --side-on:#e2e8f0;
@@ -14,7 +16,11 @@
   --mono:Consolas,"Courier New",monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;display:flex;min-height:100vh}
+html{scroll-behavior:smooth}
+body{animation:page-in .45s cubic-bezier(.2,.75,.25,1) both}
+@keyframes page-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+body{background:var(--bg);color:var(--text);font-family:"Noto Sans SC","Microsoft YaHei","Segoe UI",sans-serif;font-size:14px;display:flex;min-height:100vh}
 aside{width:220px;flex:none;background:var(--side);display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh}
 .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
 .brand img{width:34px;height:34px}
@@ -75,43 +81,43 @@ pre .c{color:#64748b}
     <div><b>SevenEngine</b><small>V3 Flash · Cloud</small></div>
   </div>
   <nav>
-    <a href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</a>
-    <a href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Cloud Scan</a>
-    <a href="/docs" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>API Docs</a>
-    <a href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>About Engine</a>
+    <a href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>总览</a>
+    <a href="/scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>云扫描</a>
+    <a href="/docs" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>接口文档</a>
+    <a href="/about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>引擎信息</a>
   </nav>
-  <div class="sidefoot">NewEra Studio<br>SevenEngine V3 Flash<br>Cloud inference endpoint</div>
+  <div class="sidefoot">NewEra Studio<br>官方群：777353898<br>SevenEngine V3 Flash</div>
 </aside>
 <div class="wrap">
   <topbar>
-    <h1>API Reference</h1>
-    <div class="conn" id="conn"><i></i><span id="connTxt">Checking</span></div>
+    <h1>API 接口文档</h1>
+    <div class="conn" id="conn"><i></i><span id="connTxt">检测中</span></div>
   </topbar>
   <main>
     <div class="hero">
-      <h2>SevenEngine Cloud API</h2>
-      <p>Static PE detection over HTTP. Upload a binary, receive a maliciousness score. Base URL is this host; every endpoint answers with JSON unless noted, and all responses carry <span style="font-family:var(--mono);font-size:12px">Access-Control-Allow-Origin: *</span> so browser clients can call the API directly.</p>
+      <h2>SevenEngine 云扫描 API</h2>
+      <p>通过 HTTP 调用 PE 静态检测：上传二进制文件，返回恶意分。Base URL 即当前主机；除特别说明外所有端点返回 JSON，且全部响应带 <span style="font-family:var(--mono);font-size:12px">Access-Control-Allow-Origin: *</span>，浏览器可直接跨域调用。</p>
     </div>
 
     <div class="panel">
-      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>Service Status</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>服务状态</h2>
       <div class="ep">
-        <div class="hd"><span class="method get">GET</span><code>/api/health</code><em>liveness + engine metadata</em></div>
+        <div class="hd"><span class="method get">GET</span><code>/api/health</code><em>存活检查 + 引擎元数据</em></div>
         <div class="bd">
-          <p>Reports whether the model is loaded, plus the feature dimension, decision threshold and process uptime. Safe to poll. Also used as the Render health check path.</p>
+          <p>返回模型是否加载成功，以及特征维度、判定阈值与进程运行时长。可放心轮询，同时作为 Render 健康检查路径。</p>
 <pre>{
   <span class="k">"ok"</span>: <span class="n">true</span>,
   <span class="k">"engine"</span>: <span class="s">"SevenEngine V3 Flash"</span>,
-  <span class="k">"feature_dim"</span>: <span class="n">1086</span>,
-  <span class="k">"threshold"</span>: <span class="n">85</span>,
+  <span class="k">"feature_dim"</span>: <span class="n">940</span>,
+  <span class="k">"threshold"</span>: <span class="n">99</span>,
   <span class="k">"uptime_sec"</span>: <span class="n">189</span>
 }</pre>
         </div>
       </div>
       <div class="ep">
-        <div class="hd"><span class="method get">GET</span><code>/api/stats</code><em>aggregate counters</em></div>
+        <div class="hd"><span class="method get">GET</span><code>/api/stats</code><em>累计统计</em></div>
         <div class="bd">
-          <p>Running totals for this worker process: how many samples were scanned, how they were classified, the mean inference time, and how many hashes are currently cached.</p>
+          <p>当前进程的累计数据：扫描总数、各分类数量、平均推理耗时与哈希缓存条目数。</p>
 <pre>{
   <span class="k">"ok"</span>: <span class="n">true</span>,
   <span class="k">"total"</span>: <span class="n">7</span>,
@@ -125,13 +131,13 @@ pre .c{color:#64748b}
         </div>
       </div>
       <div class="ep">
-        <div class="hd"><span class="method get">GET</span><code>/api/history</code><em>recent scan records</em></div>
+        <div class="hd"><span class="method get">GET</span><code>/api/history</code><em>最近扫描记录</em></div>
         <div class="bd">
-          <p>Newest-first list of the last scans. Ring buffer of 500 entries, reset when the worker restarts.</p>
+          <p>按时间倒序返回最近扫描记录。环形缓冲最多 500 条，进程重启后清空。</p>
           <table class="params">
-            <thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead>
+            <thead><tr><th>参数</th><th>类型</th><th>说明</th></tr></thead>
             <tbody>
-              <tr><td>limit</td><td>int, query</td><td>How many records to return. Default 100, maximum 500.</td></tr>
+              <tr><td>limit</td><td>int, query</td><td>返回条数，默认 100，最大 500。</td></tr>
             </tbody>
           </table>
 <pre>{
@@ -147,15 +153,16 @@ pre .c{color:#64748b}
     </div>
 
     <div class="panel">
-      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Scanning</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>扫描接口</h2>
       <div class="ep">
-        <div class="hd"><span class="method post">POST</span><code>/api/scan</code><em>primary endpoint, multipart upload</em></div>
+        <div class="hd"><span class="method post">POST</span><code>/api/scan</code><em>主接口，multipart 上传</em></div>
         <div class="bd">
-          <p>Send one binary as multipart form data with the field name <span style="font-family:var(--mono);font-size:12px">file</span>. The engine reads the MZ magic, ignores the filename extension, extracts 1086 features and scores the sample. Maximum 300 MB per request.</p>
+          <p>以 multipart 表单上传单个二进制文件，字段名 <span style="font-family:var(--mono);font-size:12px">file</span>。引擎按 MZ 魔数识别 PE、忽略扩展名，提取 940 维特征并评分。单请求最大 300 MB；可选字段 <span style="font-family:var(--mono);font-size:12px">threshold</span> 可在 1-100 间自定义判定阈值，省略时用默认值 99。</p>
           <table class="params">
-            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
             <tbody>
-              <tr><td>file</td><td>binary</td><td>The PE sample. Anything up to 300 MB.</td></tr>
+              <tr><td>file</td><td>binary</td><td>PE 样本，最大 300 MB。</td></tr>
+              <tr><td>threshold</td><td>int, form</td><td>可选。1-100，默认 99；指定自定义阈值时结果不写入缓存。</td></tr>
             </tbody>
           </table>
 <pre><span class="c"># curl</span>
@@ -167,6 +174,7 @@ curl -F <span class="s">"file=@sample.exe"</span> https://your-host/api/scan</pr
   <span class="k">"status"</span>: <span class="s">"clean"</span>,
   <span class="k">"label"</span>: <span class="s">"Clean"</span>,
   <span class="k">"score"</span>: <span class="n">0</span>,
+  <span class="k">"threshold"</span>: <span class="n">99</span>,
   <span class="k">"ms"</span>: <span class="n">26</span>,
   <span class="k">"md5"</span>: <span class="s">"971b133d2119877b5631e4a33f1ed4bf"</span>,
   <span class="k">"sha256"</span>: <span class="s">"002b2ec6d7210b0c354d56192bd429657f9990ea8535fc4b7f5350c02483f3eb"</span>
@@ -195,14 +203,14 @@ Score:None</pre>
         </div>
       </div>
       <div class="ep">
-        <div class="hd"><span class="method post">POST</span><code>/api/scan/base64</code><em>JSON body, no multipart</em></div>
+        <div class="hd"><span class="method post">POST</span><code>/api/scan/base64</code><em>JSON 提交，无需 multipart</em></div>
         <div class="bd">
-          <p>For clients where multipart is awkward: send the sample as a base64 string inside JSON. Maximum decoded size is 300 MB.</p>
+          <p>适合不便使用 multipart 的客户端：用 JSON 传 base64 字符串。解码后最大 300 MB。</p>
           <table class="params">
-            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
             <tbody>
-              <tr><td>name</td><td>string</td><td>Optional label for the sample, echoed back.</td></tr>
-              <tr><td>data</td><td>string</td><td>Base64-encoded file content.</td></tr>
+              <tr><td>name</td><td>string</td><td>可选样本名，原样回显。</td></tr>
+              <tr><td>data</td><td>string</td><td>base64 编码的文件内容。</td></tr>
             </tbody>
           </table>
 <pre>{
@@ -212,14 +220,14 @@ Score:None</pre>
         </div>
       </div>
       <div class="ep">
-        <div class="hd"><span class="method post">POST</span><code>/api/scan/hash</code><em>verdict by hash, no upload</em></div>
+        <div class="hd"><span class="method post">POST</span><code>/api/scan/hash</code><em>按哈希查询，无需上传</em></div>
         <div class="bd">
-          <p>Look up a previously scanned sample by SHA-256 or MD5. Returns the cached verdict when this worker has seen the hash, otherwise <span style="font-family:var(--mono);font-size:12px">"found": false</span> with a hint to upload the file.</p>
+          <p>用 SHA-256 或 MD5 查询已扫描样本。命中时返回缓存判定，未命中返回 <span style="font-family:var(--mono);font-size:12px">"found": false</span>，需重新上传文件。</p>
           <table class="params">
-            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
             <tbody>
-              <tr><td>sha256</td><td>string</td><td>64 hex characters. Preferred.</td></tr>
-              <tr><td>md5</td><td>string</td><td>32 hex characters. Accepted as fallback.</td></tr>
+              <tr><td>sha256</td><td>string</td><td>64 位十六进制，优先使用。</td></tr>
+              <tr><td>md5</td><td>string</td><td>32 位十六进制，可作为备选。</td></tr>
             </tbody>
           </table>
 <pre><span class="c"># cache hit</span>
@@ -231,34 +239,34 @@ Score:None</pre>
     </div>
 
     <div class="panel">
-      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>Verdict Semantics</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>判定语义</h2>
       <div class="ep">
         <div class="bd">
-          <p>The model emits a maliciousness score from 0 to 100. The decision boundary is fixed at 85.</p>
+          <p>模型输出 0-100 的恶意分。默认判定阈值 99，可通过 /api/scan 的 threshold 字段在 1-100 间自定义。</p>
           <table class="params">
-            <thead><tr><th>Score</th><th>Status</th><th>Interpretation</th></tr></thead>
+            <thead><tr><th>分数</th><th>状态</th><th>解读</th></tr></thead>
             <tbody>
-              <tr><td>85 - 100</td><td>malware</td><td>Above threshold, treat as malicious.</td></tr>
-              <tr><td>0 - 84</td><td>clean</td><td>Below threshold, no strong malicious pattern.</td></tr>
-              <tr><td>null</td><td>error</td><td>Not a PE image, empty file, or unreadable.</td></tr>
+              <tr><td>&gt;= threshold（默认 99）</td><td>malware</td><td>达到阈值，判为恶意。</td></tr>
+              <tr><td>&lt; threshold</td><td>clean</td><td>低于阈值，未发现强恶意特征。</td></tr>
+              <tr><td>null</td><td>error</td><td>非 PE 文件、空文件或解析失败。</td></tr>
             </tbody>
           </table>
           <div class="note">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span>Feature extraction samples at most 2 MB of raw bytes per file, so a 300 MB installer is scored as fast as a small DLL. The whole file is still hashed for cache identity.</span>
+            <span>特征提取每文件最多采样 2 MB 原始字节，300 MB 安装包与小型 DLL 的推理速度接近；文件仍会整体哈希用于缓存标识。官方交流群：777353898</span>
           </div>
         </div>
       </div>
     </div>
   </main>
-  <div class="foot">SevenEngine V3 Flash · Cloud inference · NewEra Studio</div>
+  <div class="foot">SevenEngine V3 Flash · 云扫描 · NewEra Studio · 官方群 777353898</div>
 </div>
 <script>
 async function ping(){
   const c=document.getElementById('conn'),t=document.getElementById('connTxt');
   try{const r=await fetch('/api/health');const j=await r.json();
-    if(j.ok){c.classList.remove('off');t.textContent='Online'}else{c.classList.add('off');t.textContent='Engine offline'}
-  }catch(e){c.classList.add('off');t.textContent='Disconnected'}
+    if(j.ok){c.classList.remove('off');t.textContent='在线'}else{c.classList.add('off');t.textContent='引擎离线'}
+  }catch(e){c.classList.add('off');t.textContent='连接失败'}
 }
 ping();setInterval(ping,5000);
 </script>

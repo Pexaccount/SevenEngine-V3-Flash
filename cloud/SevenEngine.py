@@ -997,7 +997,7 @@ def load_model(path=None):
     return lightgbm.Booster(model_file=path or MODEL_PATH)
 
 
-def scan_bytes(data, model):
+def scan_bytes(data, model, threshold=None):
     if not is_pe(data):
         return "error", None
     feats = extract_features(data)
@@ -1005,7 +1005,8 @@ def scan_bytes(data, model):
         return "error", None
     prob = float(model.predict(feats.reshape(1, -1))[0])
     score = int(round(prob * 100))
-    if score >= MALWARE_THRESHOLD:
+    cutoff = MALWARE_THRESHOLD if threshold is None else max(1, min(100, int(threshold)))
+    if score >= cutoff:
         return "malware", score
     return "clean", score
 
